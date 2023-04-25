@@ -15,6 +15,8 @@ def data_loader():
 
     df['applicant_co_applicant_sex'] = df['applicant_sex'].astype(str) + '_' + df['co_applicant_sex'].astype(str)
 
+    return df
+
 
 
 def compare_race_ethnicity_groups(df, race_ethnicity_col, groups, features, title="Comparison of Race/Ethnicity Groups"):
