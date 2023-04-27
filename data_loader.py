@@ -29,6 +29,25 @@ def process_data(num):
     # filter DataFrame based on 'action_taken' column
     df = df[df['action_taken'].isin([1, 3])]
     df['action_taken'] = df['action_taken'].replace({1: 'Approved', 3: 'Denied'})
+
+    df = add_income_group_column(df)
+
     df.to_csv('data/processed_data.csv', index=False)
+
     return df
 
+def add_income_group_column(data):
+    # Calculate the income percentiles
+    income_percentiles = pd.Series(data['applicant_income_000s']).rank(pct=True)
+
+    # Define the income groups
+    low_income_mask = income_percentiles <= 0.3
+    middle_income_mask = (income_percentiles > 0.3) & (income_percentiles <= 0.7)
+    high_income_mask = income_percentiles > 0.7
+
+    # Create a new column indicating the income group
+    data.loc[low_income_mask, 'income_group'] = 'low'
+    data.loc[middle_income_mask, 'income_group'] = 'middle'
+    data.loc[high_income_mask, 'income_group'] = 'high'
+
+    return data
