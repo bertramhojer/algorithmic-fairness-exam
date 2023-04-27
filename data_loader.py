@@ -20,7 +20,7 @@ def process_data(num):
 
     # Creating a combined variable of race and ethnicity
     # specifically to divide white and latino people 
-    df['race_Ethnicity'] = df['applicant_race_1'] 
+    df['race_ethnicity'] = df['applicant_race_1'] 
     index = df.loc[(df['applicant_race_1'] == 5) & (df['applicant_ethnicity'] == 1)].index 
     df.loc[index, 'race_ethnicity'] = 9 # 9 is a new category for people of latino ethnicity and of white race
 
