@@ -3,15 +3,14 @@ from matplotlib import pyplot as plt
 import seaborn as sns
 
 
-def data_loader():
-    num = 10000
+def data_loader(num=10000):
     df = pd.read_csv('data/hmda_2017_nationwide_all-records_codes.csv').sample(num, random_state=42)
 
     # Creating a combined variable of race and ethnicity
     # specifically to divide white and latino people 
     df['race_Ethnicity'] = df['applicant_race_1'] 
     index = df.loc[(df['applicant_race_1'] == 5) & (df['applicant_ethnicity'] == 1)].index 
-    df.loc[index, 'race_Ethnicity'] = 9 # 9 is a new category for people of latino ethnicity and of white race
+    df.loc[index, 'race_ethnicity'] = 9 # 9 is a new category for people of latino ethnicity and of white race
 
     df['applicant_co_applicant_sex'] = df['applicant_sex'].astype(str) + '_' + df['co_applicant_sex'].astype(str)
 
