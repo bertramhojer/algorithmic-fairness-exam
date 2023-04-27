@@ -3,6 +3,8 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
+from dython import nominal
+from dython.nominal import associations
 plt.style.use('bmh')
 matplotlib.rcParams['font.family'] = 'STIXGeneral'
 
@@ -92,7 +94,7 @@ def plot_histogram_differences(data, column, X, groups, group_labels, features, 
 def approval_rates(data):
     group_labels = ["American Indian", "Asian", "African American", "Hawaiian/Pacific", "White", "Latino"]
 
-    data = data[data.applicant_co_applicant_sex.isin(['1_2', '2_1', '1_1', '2_2'])]
+    data = data[data.joint_sex.isin(['1_2', '2_1', '1_1', '2_2'])]
     data = data[data.race_ethnicity.isin([1, 2, 3, 4, 5, 9])]
     data['approved'] = [1 if x == 'Approved' else 0 for x in data['action_taken']]
 
@@ -100,7 +102,7 @@ def approval_rates(data):
 
     for i, group in enumerate(['low', 'middle', 'high']):
         subset = data[data.income_group == group]
-        approval_rate = subset.groupby(['race_ethnicity', 'applicant_co_applicant_sex'])['approved'].mean() * 100
+        approval_rate = subset.groupby(['race_ethnicity', 'joint_sex'])['approved'].mean() * 100
 
         ax = axes[i]
         approval_rate.unstack().plot(kind='bar', position=.5, width=0.5, ax=ax)

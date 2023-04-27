@@ -24,7 +24,7 @@ def process_data(num):
     index = df.loc[(df['applicant_race_1'] == 5) & (df['applicant_ethnicity'] == 1)].index 
     df.loc[index, 'race_ethnicity'] = 9 # 9 is a new category for people of latino ethnicity and of white race
 
-    df['applicant_co_applicant_sex'] = df['applicant_sex'].astype(str) + '_' + df['co_applicant_sex'].astype(str)
+    df['joint_sex'] = df['applicant_sex'].astype(str) + '_' + df['co_applicant_sex'].astype(str)
 
     # filter DataFrame based on 'action_taken' column
     df = df[df['action_taken'].isin([1, 3])]
