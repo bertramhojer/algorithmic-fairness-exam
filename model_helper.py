@@ -127,7 +127,7 @@ def grid_search(gammas, X_train_cv, y_train_cv, num_folds: int = 5, verbose = Fa
     # not use protected features in training
     betas = np.random.rand(X_train_cv.shape[1])
     for _gamma in gammas:
-        print("\nGamma: ", _gamma) 
+        print("Gamma: ", _gamma) 
         fair_accuracy, accuracy, f1_scores, balanced_accuracy_scores = cross_val_random(y_train_cv, num_folds, verbose, _lambda, arr, _fold_size, X_train_cv, betas, _gamma)
  
         average_accuracy = np.mean(fair_accuracy)
@@ -137,7 +137,6 @@ def grid_search(gammas, X_train_cv, y_train_cv, num_folds: int = 5, verbose = Fa
     return hyp_scores
 
 def cross_val_random(y_train_cv, iter, verbose, _lambda, arr, _fold_size, X_train_cv_dropped, betas, _gamma):
-    print('Cross validation')
     fair_accuracy = []
     accuracy = []
     f1_scores = []
@@ -269,3 +268,4 @@ def plot_lambda_tuning(performance_metrics, lambda_vals):
     fig.suptitle('F1-score for different lambda values')
     axes.set_xlabel('Lambda')
     axes.set_ylabel('F1-score')
+
