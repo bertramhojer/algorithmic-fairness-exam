@@ -27,7 +27,7 @@ def plot_density_differences(data, column, groups, group_labels, features, title
             if '_000s' in feature:
                 sns.kdeplot(group_data[feature], ax=axes[idx], label=group_labels[ix], clip=(0, 1000))
             else:    
-                sns.kdeplot(group_data[feature], ax=axes[idx], label=group_labels[ix], clip=(0, 1000000000))
+                sns.kdeplot(group_data[feature], ax=axes[idx], label=group_labels[ix], clip=(0, 1000000))
         
         axes[idx].set_title(f'Distribution of {feature}')
         axes[idx].legend(title=column)
