@@ -18,7 +18,7 @@ def eval(X_train, X_test, y_test, y_train_enc, y_test_enc, groups):
 
     # get debiased data 
     X_train_scaled_fair_PCA, U, explained_variance = fair_PCA(X_train, X_train.shape[1], groups)
-    X_test_scaled_fair_PCA = X_train @ U
+    X_test_scaled_fair_PCA = X_test @ U
 
     def train(X_train, y_train, X_test_, y_test_, groups):
         best_gamma = 0.1 # Not relevant in this func # Best computed gamma without fairness regulization #get_tuned_gamma(gammas, X_train_scaled, y_train, groups, num_folds=5, verbose=True)
@@ -32,6 +32,7 @@ def eval(X_train, X_test, y_test, y_train_enc, y_test_enc, groups):
 
     normal_preds = train(X_train, y_train_enc, X_test, y_test_enc, groups)
     pca_preds = train(X_train_scaled_PCA, y_train_enc, X_test_scaled_PCA, y_test_enc, groups)
+    #print(f'{X_test_scaled_fair_PCA.shape, y_test_enc.shape=}')
     fair_preds = train(X_train_scaled_fair_PCA, y_train_enc, X_test_scaled_fair_PCA, y_test_enc, groups)
 
     return normal_preds, pca_preds, fair_preds

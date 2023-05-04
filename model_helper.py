@@ -177,6 +177,7 @@ def evaluate(X_test, y_test, result):
     predictions = sigmoid(np.dot(X_test, result[0]))
     binary_predictions = (predictions > 0.5).astype(int)
     # Calculate the accuracy of the logistic regression model
+    #print(f'{X_test.shape, y_test.shape, binary_predictions.shape=}')
     accuracy = np.mean(binary_predictions == y_test)
     print(f"Logistic regression accuracy: {accuracy * 100:.2f}%")
     return binary_predictions
