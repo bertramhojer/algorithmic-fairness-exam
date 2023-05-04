@@ -5,7 +5,10 @@ import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import matplotlib.pyplot as plt
 
-def train_and_evaluate_nn(x_train, x_test, y_train, y_test, num_epochs=20, batch_size=32, lr=0.001, plot_loss=False):
+def train_and_evaluate_nn(x_train, x_test, y_train, y_test, num_epochs=20, batch_size=32, lr=0.001, plot_loss=False, seed=4206942):
+    # Set seeds for reproducibility
+    np.random.seed(seed)
+    torch.manual_seed(seed)
     # Convert numpy arrays to PyTorch tensors
     x_train_tensor = torch.from_numpy(x_train).float()
     x_test_tensor = torch.from_numpy(x_test).float()
