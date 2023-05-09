@@ -42,8 +42,8 @@ def fair_PCA(X_train, n_components, groups):
 
     # Compute the nullspace of z^T X and build matrix R
     z = groups
-    X = X_train.values
-
+    X = X_train
+    z = z - np.mean(z, axis=0)
     R = null_space(np.dot(z.T, X))
     #print(f'{R.shape=}')
 
@@ -99,46 +99,6 @@ def project_and_plot_PCA(X_train, size = (25, 5), n_components=2, corr_metric='p
     plt.tight_layout()
     plt.show()
 
-def corr_plot(X_train, corr_metric, groups, n_components=2, fair=False):
-    protected_features = groups #X_train[['SEX_Female', 'RAC1P_Black or African American alone']]
-    # X_train = X_train.drop(columns=['SEX_Female', 'RAC1P_Black or African American alone'])
-    fig, axes = plt.subplots(figsize=(25, 5))
-    # Correlation matrix heatmap
-    if fair:
-        X_PCA_n, _, _ = fair_PCA(X_train, n_components, groups)
-    else:
-        X_PCA_n, _ = PCA(X_train, n_components, get_eigen=False)
-    
-    #print(f"{X_PCA_n.shape=}")
-
-    if corr_metric == 'pearson':
-        # Compute correlation between PCA components and protected features
-        corr_matrix = np.corrcoef(np.column_stack((protected_features, X_PCA_n)).T)
-    elif corr_metric == 'spearman':
-        corr_matrix = np.corrcoef(np.argsort(np.column_stack((protected_features, X_PCA_n)), axis=0).T)
-    else:
-        raise ValueError("Invalid correlation metric. Choose either 'pearson' or 'spearman'.")
-
-    # Display only the correlation between PCA components and protected features
-    corr_matrix = np.nan_to_num(corr_matrix[:2, 2:], nan=0.0)
-
-    #print(X_PCA_n.shape)
-    #print(protected_features.shape)
-    #print(corr_matrix)
-    
-    sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", center=0, vmin=-.1, vmax=.1, square=True, ax=axes, fmt=".2f")
-    if fair:
-        axes.set_xticklabels(list(range(1,56)))
-        axes.set_title(f"Corr between Fair PCA and Prot. features")
-    else:
-        axes.set_xticklabels(list(range(1,58)))
-        axes.set_title(f"Corr between PCA and Prot. features")
-    axes.set_yticklabels(['SEX', 'RAC'], va='center')
-    axes.set_xlabel("Component")
-    axes.set_ylabel("Protected Feature")
-
-    plt.tight_layout()
-    plt.show()
 
 
 def reconstruction_loss(X_train, X_test, n_components, groups, fair=False):
@@ -214,22 +174,35 @@ def corr_plot(X_train, corr_metric, groups, n_components=2, fair=False):
     
     if corr_metric == 'pearson':
         # Compute correlation between PCA components and protected features
-        corr_matrix = np.corrcoef(np.column_stack((protected_features, X_PCA_n)).T)
+        # Stack the two matrices together
+        stacked_matrix = np.column_stack((protected_features, X_PCA_n))
+
+        # Compute the correlation matrix
+        corr_matrix = np.corrcoef(stacked_matrix.T)
+
+        # Extract the relevant parts of the correlation matrix
+        # (correlation between protected_features and X_PCA_n)
+        corr_matrix = corr_matrix[:6, 6:]   
     elif corr_metric == 'spearman':
         corr_matrix = np.corrcoef(np.argsort(np.column_stack((protected_features, X_PCA_n)), axis=0).T)
     else:
         raise ValueError("Invalid correlation metric. Choose either 'pearson' or 'spearman'.")
 
-    # Display only the correlation between PCA components and protected features
-    corr_matrix = np.nan_to_num(corr_matrix[:2, 2:], nan=0.0)
-
-    #print(X_PCA_n.shape)
-    #print(protected_features.shape)
-    #print(corr_matrix)
-    
+    # print(corr_matrix.shape) #(6, 15)
+    # print(X_PCA_n.shape) #(445, 15)
+    # print(X_train.shape) #(445, 15)
+    # print(protected_features.shape) #(445, 6)
+    # print(np.column_stack((protected_features, X_PCA_n)).T.shape) #(21, 445)
     sns.heatmap(corr_matrix, annot=True, cmap="coolwarm", center=0, vmin=-.1, vmax=.1, square=True, ax=axes, fmt=".2f")
+    shortened_one_hot_cols = [
+    'AI/AN',
+    'Asian',
+    'Black',
+    'NH/PI',
+    'White',
+    'White_Latino'
+    ]
     if fair:
-        # number of components 
         print(X_PCA_n.shape)
         axes.set_xticklabels(list(range(1, X_PCA_n.shape[1]+1)))
         axes.set_title(f"Corr between Fair PCA and Prot. features")
@@ -237,11 +210,10 @@ def corr_plot(X_train, corr_metric, groups, n_components=2, fair=False):
         print(X_PCA_n.shape)
         axes.set_xticklabels(list(range(1, X_PCA_n.shape[1]+1)))
         axes.set_title(f"Corr between PCA and Prot. features")
-    axes.set_yticklabels(['SEX', 'RAC'], va='center')
+    
+    axes.set_yticklabels(shortened_one_hot_cols, va='center')
     axes.set_xlabel("Component")
     axes.set_ylabel("Protected Feature")
 
     plt.tight_layout()
     plt.show()
-
-

@@ -83,8 +83,13 @@ def compute_cost(beta ,X, y, _lambda, _gamma, fair_loss_ = False, groups = None)
     # CHECK IF WE SHOULD USE THE LOGITS OR THE Y_PRED IN FAIR LOSS?
     # AND SHOULD WE TUNE LAMBDA ALSO?
     # AND SHOULD WE USE THE SAME LAMBDA FOR BOTH GROUPS? YES 
+    
     if fair_loss_:
-        return logistic_loss(y, y_pred) + _gamma * l2_loss(beta) + _lambda * fair_loss_gpt(y, logits, groups[:,1]) + _lambda * fair_loss_gpt(y, logits, groups[:,0])
+        return (
+                logistic_loss(y, y_pred)
+                + _gamma * l2_loss(beta)
+                + sum(_lambda * fair_loss_gpt(y, logits, groups[:, i]) for i in range(groups.shape[1]))
+                )
     elif not fair_loss_:
         return logistic_loss(y, y_pred) + _gamma * l2_loss(beta)
     elif fair_loss_ == 'NO l2':
@@ -190,7 +195,7 @@ def train(X_train, y_train, X_test_, y_test_, groups, fair_loss_, best_gamma, la
     return preds
 
 
-def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss_, best_gamma):
+def tune_lambda_old(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss_, best_gamma):
     def get_preds(result, X_test):
         predictions = sigmoid(np.dot(X_test, result[0]))
         return (predictions > 0.5).astype(int)
@@ -252,7 +257,77 @@ def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss
 
     return performance_metrics
 
-def plot_lambda_tuning(performance_metrics, lambda_vals):
+def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss_, best_gamma, one_hot_cols):
+    def get_preds(result, X_test):
+        predictions = sigmoid(np.dot(X_test, result[0]))
+        return (predictions > 0.5).astype(int)
+
+    performance_metrics = {'F1 Score': []}
+    
+    # Add F1 Score, Demographic Parity, and Equalized Odds metrics for each column
+    for col in one_hot_cols:
+        performance_metrics[f'F1 Score for {col}'] = []
+        performance_metrics[f'{col} Demographic Parity Difference'] = []
+        performance_metrics[f'{col} Demographic Parity Ratio'] = []
+        performance_metrics[f'{col} Equalized Odds Difference'] = []
+        performance_metrics[f'{col} Equalized Odds Ratio'] = []
+
+    lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
+    
+    for lambda_val in lambda_vals:
+        betas = np.random.rand(x_train.shape[1])
+        result = opt.fmin_tnc(func=compute_cost, x0=betas, maxfun = 1000, args = (x_train, y_train, lambda_val, best_gamma, fair_loss_, groups), xtol=1e-4, ftol=1e-4, approx_grad=True, messages=0)
+
+        test_preds = get_preds(result, x_test)
+        
+        # Generate masks dynamically for each column in one_hot_cols
+        masks = {col: test_groups[:, i] == 1 for i, col in enumerate(one_hot_cols)}
+
+        print("Lambda: ", lambda_val)
+
+        performance_metrics['F1 Score'].append(f1_score(y_test, test_preds))
+        
+        # Compute metrics for each column
+        for col in one_hot_cols:
+            mask = masks[col]
+            # Check if test_preds[mask] is empty
+            if test_preds[mask].size == 0:
+                print(f'No {col} predictions for this lambda value')
+            performance_metrics[f'F1 Score for {col}'].append(f1_score(y_test[mask], test_preds[mask]))
+            performance_metrics[f'{col} Demographic Parity Difference'].append(demographic_parity_difference(y_test, test_preds, sensitive_features=test_groups[:, one_hot_cols.index(col)]))
+            performance_metrics[f'{col} Demographic Parity Ratio'].append(demographic_parity_ratio(y_test, test_preds, sensitive_features=test_groups[:, one_hot_cols.index(col)]))
+            performance_metrics[f'{col} Equalized Odds Difference'].append(equalized_odds_difference(y_test, test_preds, sensitive_features=test_groups[:, one_hot_cols.index(col)]))
+            performance_metrics[f'{col} Equalized Odds Ratio'].append(equalized_odds_ratio(y_test, test_preds, sensitive_features=test_groups[:, one_hot_cols.index(col)]))
+
+    return performance_metrics
+
+def plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols):
+    fig, ax = plt.subplots(figsize=(10, 6))
+    plt.style.use('bmh')
+    lambda_str = [str(l) for l in lambda_vals]
+
+    # Mapping column names to shortened versions
+    col_name_mapping = {
+        'Race_American_Indian_Alaska_Native': 'AI/AN',
+        'Race_Asian': 'Asian',
+        'Race_Black_African_American': 'Black',
+        'Race_Native_Hawaiian_Pacific_Islander': 'NH/PI',
+        'Race_White': 'White',
+        'Race_White_Latino': 'White Latino',
+    }
+
+    for col in one_hot_cols:
+        short_name = col_name_mapping[col]
+        ax.plot(lambda_str, performance_metrics[f'F1 Score for {col}'], label=short_name)
+        ax.scatter(lambda_str, performance_metrics[f'F1 Score for {col}'])
+
+    ax.legend(loc='upper right')
+    ax.set_title('F1-score for different lambda values')
+    ax.set_xlabel('Lambda')
+    ax.set_ylabel('F1-score')
+    plt.show()
+
+def plot_lambda_tuning_old(performance_metrics, lambda_vals):
     fig, axes = plt.subplots(1, 1, figsize=(10, 4))
     plt.style.use('bmh')
     lambda_str = [str(l) for l in lambda_vals]
