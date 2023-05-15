@@ -68,11 +68,21 @@ def preprocess(df, features, one_hot_cols):
     df['action_taken'].replace({'Approved': 1, 'Denied': 0}, inplace=True)
     # remove rows with "applicant_sex" values of 3, 4 or 5
 
-    x_train, x_test, y_train, y_test = train_test_split(df, df['action_taken'], test_size=0.2, random_state=42)
-
+    #x_train, x_test, y_train, y_test = train_test_split(df, df['action_taken'], test_size=0.2, random_state=42)
+    x_temp, x_test, y_temp, y_test = train_test_split(df, df['action_taken'], test_size=0.15, random_state=42)
+    x_train, x_val, y_train, y_val = train_test_split(x_temp, y_temp, test_size=0.17647, random_state=42)
+    # print sets proportions as pct of total
+    print(f'x_train: {x_train.shape[0]/df.shape[0]:.2%}')
+    print(f'x_val: {x_val.shape[0]/df.shape[0]:.2%}')
+    print(f'x_test: {x_test.shape[0]/df.shape[0]:.2%}')
+    
     train_groups = np.column_stack([
         x_train[col].to_numpy() for col in one_hot_cols
     ])
+    val_groups = np.column_stack([
+        x_val[col].to_numpy() for col in one_hot_cols
+    ])
+
     test_groups = np.column_stack([
         x_test[col].to_numpy() for col in one_hot_cols
     ])
@@ -81,6 +91,7 @@ def preprocess(df, features, one_hot_cols):
     print(f'Num features BEFORE filtering features {df.shape[1]}')
     x_train = x_train[features]
     x_test = x_test[features]
+    x_val = x_val[features]
     print(f'Num features AFTER filtering features {x_train.shape[1]}')
 
     # print shapes
@@ -90,6 +101,7 @@ def preprocess(df, features, one_hot_cols):
     # Replace nan values with median value for that column 
     x_train = x_train.fillna(x_train.median())
     x_test = x_test.fillna(x_train.median())
+    x_val = x_test.fillna(x_val.median())
     
     # print number of nan values in each column
     # print(x_train.isna().sum())
@@ -98,8 +110,9 @@ def preprocess(df, features, one_hot_cols):
     scaler = StandardScaler()
     x_train = scaler.fit_transform(x_train)
     x_test = scaler.transform(x_test)
+    x_val = scaler.transform(x_val)
 
-    return x_train, x_test, y_train, y_test, train_groups, test_groups
+    return x_train, x_val, x_test, y_train, y_val , y_test, train_groups, val_groups, test_groups
 
 def old_create_groups(x_train, x_test):
     train_groups = np.column_stack([

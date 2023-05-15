@@ -39,6 +39,7 @@ def PCA(X_train, n_components, get_eigen = False):
         return X_PCA, explained_variance
 
 def fair_PCA(X_train, n_components, groups):
+    # X_train: N x m matrix
 
     # Compute the nullspace of z^T X and build matrix R
     z = groups
