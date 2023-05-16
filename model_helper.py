@@ -142,7 +142,6 @@ def calculate_fair_accuracy(y_, y_pred, verbose=False):
 
 def grid_search(gammas, X_train_cv, y_train_cv, train_groups, num_folds: int = 5, verbose = False, _lambda = 0):
     hyp_scores = []
-    
     #create folds
     arr = np.arange(X_train_cv.shape[0])
     np.random.shuffle(arr)
@@ -150,26 +149,18 @@ def grid_search(gammas, X_train_cv, y_train_cv, train_groups, num_folds: int = 5
 
     # not use protected features in training
     betas = np.random.rand(X_train_cv.shape[1])
-    # Check if CUDA is available
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # X_train_cv = torch.from_numpy(X_train_cv).float().to(device)
-    # y_train_cv = torch.from_numpy(y_train_cv).long().view(-1, 1).to(device)
-    # train_groups = torch.from_numpy(train_groups).long().to(device)
     for _gamma in gammas:
         print("Gamma: ", _gamma) 
-        # intialize LR model
-        # model = LogisticRegression(input_size=X_train_cv.shape[1])
-
-        fair_accuracy, accuracy, f1_scores, balanced_accuracy_scores = cross_val_random(y_train_cv, num_folds, verbose, _lambda, arr, _fold_size, X_train_cv, betas, _gamma, train_groups = train_groups)
+        fair_accuracy, accuracy, f1_scores, balanced_accuracy_scores = cross_val_random(y_train_cv, num_folds, verbose, arr, _fold_size, X_train_cv, train_groups)
  
-        average_accuracy = np.mean(fair_accuracy)
+        average_accuracy = np.mean(balanced_accuracy_scores)
         if verbose:
-            print("Average accuracy: ", average_accuracy)
+            print("Average balanced_accuracy_scores: ", average_accuracy)
         hyp_scores.append((average_accuracy, _gamma))
     return hyp_scores
 
-def cross_val_random(y_train_cv, iter, verbose, _lambda, arr, _fold_size, X_train_cv_dropped, betas, _gamma, train_groups=None):
+def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_dropped , train_groups):
     fair_accuracy = []
     accuracy = []
     f1_scores = []
@@ -181,28 +172,20 @@ def cross_val_random(y_train_cv, iter, verbose, _lambda, arr, _fold_size, X_trai
         scaler = StandardScaler()
         scaler.fit(X_train_cv_dropped[mask])
         X_train_scaled = scaler.transform(X_train_cv_dropped[mask])
-        y_pred, model = train_lr(X_train_scaled, y_train_cv[mask], 'X_val', 'y_val', train_groups, 'val_groups', num_epochs=1, fair_loss_=False, plot_loss=False, num_samples= 1000, val_check = False)
-        #result = opt.fmin_tnc(func=compute_cost, x0=betas, maxfun = 1000, args = (model, X_train_scaled, y_train_cv[mask], train_groups ,_lambda, _gamma), xtol=1e-4, ftol=1e-4, approx_grad=True, disp=0)
+        y_pred, model = train_lr(X_train_scaled, y_train_cv[mask], 'X_val', 'y_val', train_groups, 'val_groups', num_epochs=1000, fair_loss_=False, plot_loss=False, num_samples= 1000, val_check = False)
         # transform y_pred from tensor to numpy array
         y_pred = y_pred.detach().numpy()
-        # preds on left out fold 
-        # pred = sigmoid(np.dot(X_train_scaled[mask], result[0][:, np.newaxis]))
-        # y_pred = ((pred > 0.5)+0).ravel()
- 
-        print("Fold: ", i)
-        fair_accuracy.append(calculate_fair_accuracy(y_train_cv[mask], y_pred))
+        #fair_accuracy.append(calculate_fair_accuracy(y_train_cv[mask], y_pred))
         balanced_accuracy_scores.append(balanced_accuracy_score(y_train_cv[mask], y_pred)) # want to check if fair_accuracy is the same as balanced_accuracy
         f1_scores.append(f1_score(y_train_cv[mask], y_pred))
         accuracy.append(accuracy_score(y_train_cv[mask], y_pred))
         if verbose:
             print("Fold: ", i)
-    return fair_accuracy, accuracy, f1_scores, balanced_accuracy_scores
+    return "fair_accuracy", accuracy, f1_scores, balanced_accuracy_scores
 
 
 def get_tuned_gamma(gammas, X_train, y_train, train_groups, num_folds=5, verbose=False):
-
     hyp_scores = grid_search(gammas, X_train, y_train, train_groups, num_folds=num_folds, verbose=verbose)
-    # get best gamma
     best_gamma = max(hyp_scores, key=lambda item:item[0])[1]
     print("Best gamma: ", best_gamma)
     return best_gamma
@@ -241,14 +224,23 @@ def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss
         performance_metrics[f'{col} Equalized Odds Ratio'] = []
 
     lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
-    
+
+    device = torch.device("mps" if torch.cuda.is_available() else "cpu")
+
+    X_train_tensor = torch.from_numpy(x_test).float().to(device)
+    y_train_tensor = torch.from_numpy(y_test).long().view(-1, 1).to(device)
     for lambda_val in lambda_vals:
         betas = np.random.rand(x_train.shape[1])
 
-        result = opt.fmin_tnc(func=compute_cost, x0=betas, maxfun = 1000, args = (x_train, y_train, lambda_val, best_gamma, fair_loss_, groups), xtol=1e-4, ftol=1e-4, approx_grad=True, messages=0)
+        #result = opt.fmin_tnc(func=compute_cost, x0=betas, maxfun = 1000, args = (x_train, y_train, lambda_val, best_gamma, fair_loss_, groups), xtol=1e-4, ftol=1e-4, approx_grad=True, messages=0)
+        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=1000, fair_loss_=fair_loss_, plot_loss=False, num_samples= 1000, val_check = False, lambda_val = lambda_val)
+        #test_preds = get_preds(result, x_test)
 
-        test_preds = get_preds(result, x_test)
-        
+        # Compute predictions for test set with a pytorch model
+        y_test_pred = model(x_test) > 0.5
+        y_train_pred = y_train_pred.detach().numpy()
+        test_preds = y_test_pred.detach().numpy()
+
         # Generate masks dynamically for each column in one_hot_cols
         masks = {col: test_groups[:, i] == 1 for i, col in enumerate(one_hot_cols)}
 

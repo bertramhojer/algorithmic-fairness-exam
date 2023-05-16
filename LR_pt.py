@@ -181,9 +181,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
     train_f1_scores = []
     val_f1_scores = []
     # Train the model
-    # Time the training process with perf_counter from time 
-
-
     for epoch in range(num_epochs):
         start_time = time.perf_counter()
         print('Epoch:', epoch + 1)
@@ -240,7 +237,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         axs[1].legend()
         # save plot
         plt.savefig(f'plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}.png')
-    print('here')
     model.eval()
     if val_check:
         # Generate classification report
@@ -248,10 +244,8 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             y_val_pred = model(X_val_tensor) > 0.5
             print(classification_report(y_val_tensor.numpy(), y_val_pred.numpy()))
     else:
-        print('here')
         with torch.no_grad():
             y_train_pred = model(X_train_tensor) > 0.5
-        print('here')
         return y_train_pred, model
 
     # save model

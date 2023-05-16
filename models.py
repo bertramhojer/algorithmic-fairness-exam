@@ -49,21 +49,21 @@ print(f'y_test shape: {y_test.shape}')
 print(f'train_groups shape: {train_groups.shape}')
 
 # track time of LR_bare call 
-start_time = time.perf_counter()
-best_gamma = get_tuned_gamma(np.linspace(0.1, 1, 10), x_train, y_train, train_groups, num_folds=5, verbose=False)
+# start_time = time.perf_counter()
+# best_gamma = get_tuned_gamma(np.linspace(0.1, 1, 5), x_train, y_train, train_groups, num_folds=5, verbose=False)
 
-print(f'best_gamma: {best_gamma}')
-end_time = time.perf_counter()
-execution_time = end_time - start_time
-print("Execution time: {:.4f} seconds".format(execution_time))
-# track time of LR_bare call 
-start_time = time.perf_counter()
-
-# # Function call
-# model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 100, fair_loss_=True, num_samples=num_samples)
+# print(f'best_gamma: {best_gamma}')
 # end_time = time.perf_counter()
 # execution_time = end_time - start_time
 # print("Execution time: {:.4f} seconds".format(execution_time))
+# # track time of LR_bare call 
+# start_time = time.perf_counter()
+
+start_time = time.perf_counter()
+model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 10, fair_loss_=False, num_samples=num_samples)
+end_time = time.perf_counter()
+execution_time = end_time - start_time
+print("Execution time: {:.4f} seconds".format(execution_time))
 
 """
 ###########
