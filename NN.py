@@ -17,19 +17,26 @@ class SimpleNN(nn.Module):
         self.fc1 = nn.Linear(input_size, 64)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(64, 128)
-        # self.fc3 = nn.Linear(256, 128)
         self.fc4 = nn.Linear(128, num_classes)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
+        x = self.prepare_input(x)
         x = self.fc1(x)
         x = self.relu(x)
         x = self.fc2(x)
         x = self.relu(x)
-        # x = self.fc3(x)
-        # x = self.relu(x)
         x = self.fc4(x)
         x = self.softmax(x)
+        return x
+    
+    def prepare_input(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).float()
+        elif isinstance(x, list):
+            x = torch.tensor(x).float()
+        elif not isinstance(x, torch.Tensor):
+            raise TypeError("Input must be a numpy array, list or PyTorch tensor")
         return x
     
 def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=20, batch_size=128, lr=0.001, plot_loss=False, seed=4206942, f1_freq_=5):
