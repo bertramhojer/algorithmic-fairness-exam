@@ -12,8 +12,18 @@ class LogisticRegression(nn.Module):
         self.linear = nn.Linear(input_size, 1)
 
     def forward(self, x):
+        x = self.prepare_input(x)
         output = torch.sigmoid(self.linear(x))
         return output
+    
+    def prepare_input(self, x):
+        if isinstance(x, np.ndarray):
+            x = torch.from_numpy(x).float()
+        elif isinstance(x, list):
+            x = torch.tensor(x).float()
+        elif not isinstance(x, torch.Tensor):
+            raise TypeError("Input must be a numpy array, list or PyTorch tensor")
+        return x
 
 def logistic_loss(y_true, y_pred, eps=1e-9):
     return -(y_true * torch.log(y_pred + eps) + (1 - y_true) * torch.log(1 - y_pred + eps)).mean()
@@ -91,7 +101,7 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
         return logistic_loss(y, y_pred)
 
 def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1000, val_check = True, _lambda=1, _gamma=0.1, learning_rate=0.01):
-    # Check if CUDA is available
+    # Check if MPS is available
     device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     print('Using device:', device)
 
@@ -157,7 +167,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
                 print(f'Epoch {epoch + 1}/{num_epochs}, Train Cost: {train_cost.item()}')
         end_time = time.perf_counter()
         print(f'Epoch {epoch} took {end_time - start_time:.2f} seconds')
-    
+        
     if plot_loss:
         fig, axs = plt.subplots(2)
         axs[0].plot(train_losses, label='Train Loss')
@@ -171,7 +181,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         axs[1].set_xlabel('Epoch')
         axs[1].set_ylabel('F1 Score')
         axs[1].legend()
-        plt.savefig(f'plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L{_lambda}_G{_gamma}.png')
+        plt.savefig(f'plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.png')
     
     model.eval()
     if val_check:
@@ -183,6 +193,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             y_train_pred = model(X_train_tensor) > 0.5
         return y_train_pred, model
 
-    torch.save(model.state_dict(), f'models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L{_lambda}_G{_gamma}.pt')
+    torch.save(model.state_dict(), f'models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.pt')
     
     return model, fig, axs
