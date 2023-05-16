@@ -11,7 +11,7 @@ from fairlearn.metrics import (
 )
 import torch
 from LR_pt import compute_cost, train_lr
-
+from tqdm import tqdm
 def sigmoid(x):
     """
     This is logistic regression
@@ -32,19 +32,16 @@ def validation_mask(X, arr, _fold_size, i):
     mask[indices] = False
     return mask
 
-def grid_search(gammas, X_train_cv, y_train_cv, train_groups, num_folds: int = 5, verbose = False, _lambda = 0):
+def grid_search(gammas, X_train_cv, y_train_cv, train_groups, fair_loss_, num_folds: int = 5, verbose = False, _lambda = 0):
     hyp_scores = []
     #create folds
     arr = np.arange(X_train_cv.shape[0])
     np.random.shuffle(arr)
     _fold_size = len(arr) // num_folds
 
-    # not use protected features in training
-    betas = np.random.rand(X_train_cv.shape[1])
-
-    for _gamma in gammas:
+    for _gamma in tqdm(gammas):
         print("Gamma: ", _gamma) 
-        fair_accuracy, accuracy, f1_scores, balanced_accuracy_scores = cross_val_random(y_train_cv, num_folds, verbose, arr, _fold_size, X_train_cv, train_groups)
+        fair_accuracy, accuracy, f1_scores, balanced_accuracy_scores = cross_val_random(y_train_cv, num_folds, verbose, arr, _fold_size, X_train_cv, train_groups, fair_loss_)
  
         average_accuracy = np.mean(balanced_accuracy_scores)
         if verbose:
@@ -52,8 +49,7 @@ def grid_search(gammas, X_train_cv, y_train_cv, train_groups, num_folds: int = 5
         hyp_scores.append((average_accuracy, _gamma))
     return hyp_scores
 
-def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_dropped , train_groups):
-    fair_accuracy = []
+def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_dropped , train_groups, fair_loss_, num_samples = 1000):
     accuracy = []
     f1_scores = []
     balanced_accuracy_scores = []
@@ -63,11 +59,12 @@ def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_drop
         scaler = StandardScaler()
         scaler.fit(X_train_cv_dropped[mask])
         X_train_scaled = scaler.transform(X_train_cv_dropped[mask])
-        y_pred, model = train_lr(X_train_scaled, y_train_cv[mask], 'X_val', 'y_val', train_groups, 'val_groups', num_epochs=1000, fair_loss_=False, plot_loss=False, num_samples= 1000, val_check = False)
-        # transform y_pred from tensor to numpy array
+        
+        y_pred, model = train_lr(X_train_scaled, y_train_cv[mask], 'X_val', 'y_val', train_groups, 'val_groups', num_epochs=1000, 
+                                 fair_loss_= fair_loss_, plot_loss=False, num_samples= num_samples, val_check = False)
         y_pred = y_pred.detach().numpy()
-        #fair_accuracy.append(calculate_fair_accuracy(y_train_cv[mask], y_pred))
-        balanced_accuracy_scores.append(balanced_accuracy_score(y_train_cv[mask], y_pred)) # want to check if fair_accuracy is the same as balanced_accuracy
+
+        balanced_accuracy_scores.append(balanced_accuracy_score(y_train_cv[mask], y_pred)) 
         f1_scores.append(f1_score(y_train_cv[mask], y_pred))
         accuracy.append(accuracy_score(y_train_cv[mask], y_pred))
         if verbose:
@@ -75,8 +72,8 @@ def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_drop
     return "fair_accuracy", accuracy, f1_scores, balanced_accuracy_scores
 
 
-def get_tuned_gamma(gammas, X_train, y_train, train_groups, num_folds=5, verbose=False):
-    hyp_scores = grid_search(gammas, X_train, y_train, train_groups, num_folds=num_folds, verbose=verbose)
+def get_tuned_gamma(gammas, X_train, y_train, train_groups, num_folds=5, verbose=False, fair_loss_=False):
+    hyp_scores = grid_search(gammas, X_train, y_train, train_groups, fair_loss_ = fair_loss_, num_folds=num_folds, verbose=verbose)
     best_gamma = max(hyp_scores, key=lambda item:item[0])[1]
     print("Best gamma: ", best_gamma)
     return best_gamma
@@ -85,6 +82,7 @@ def evaluate(X_test, y_test, result):
     # Compute the predictions using the logistic regression weights
     predictions = sigmoid(np.dot(X_test, result[0]))
     binary_predictions = (predictions > 0.5).astype(int)
+    
     # Calculate the accuracy of the logistic regression model
     accuracy = np.mean(binary_predictions == y_test)
     print(f"Logistic regression accuracy: {accuracy * 100:.2f}%")
@@ -98,7 +96,7 @@ def train(X_train, y_train, X_test_, y_test_, groups, fair_loss_, best_gamma, la
     return preds
 
 
-def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, best_gamma, one_hot_cols):
+def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals):
     performance_metrics = {'F1 Score': []}
     
     # Add F1 Score, Demographic Parity, and Equalized Odds metrics for each column
@@ -109,15 +107,13 @@ def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, best_gamm
         performance_metrics[f'{col} Equalized Odds Difference'] = []
         performance_metrics[f'{col} Equalized Odds Ratio'] = []
 
-    #lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
-    lambda_vals = [0.001, 1]
     device = torch.device('mps' if torch.cuda.is_available() else 'cpu')
     #convert x_test and y_test to tensors
     x_test_tensor = torch.from_numpy(x_test).float().to(device)
-    for lambda_val in lambda_vals:
+    for lambda_val in tqdm(lambda_vals):
         # Train model with a pytorch model
-        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=5, fair_loss_=True, plot_loss=True, 
-                                       num_samples= 5, val_check = False, _lambda=lambda_val, _gamma=best_gamma)
+        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=400, fair_loss_=True, plot_loss=True, 
+                                       num_samples= 2000, val_check = False, _lambda=lambda_val, _gamma=best_gamma)
 
         # Compute predictions for test set with a pytorch model
         y_test_pred = model(x_test_tensor) > 0.5
@@ -180,4 +176,5 @@ def plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols):
     axs[1].set_ylabel('Equalized Odds Difference')
 
     plt.tight_layout()
-    plt.show()
+    # save the plot
+    plt.savefig('plots/lambda_tuning.png')

@@ -49,13 +49,16 @@ print(f'train_groups shape: {train_groups.shape}')
 
 #Find_best_gamma(x_train, y_train, train_groups)
 best_gamma = 0.325
+#lambda_vals = [0.001, 1]
+lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
 #%%
-performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols)
+performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals)
+plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols)
 
 #%%
 
 
-
+#%%
 def Find_best_gamma(x_train, y_train, train_groups):
     start_time = time.perf_counter()
     best_gamma = get_tuned_gamma(np.linspace(0.1, 1, 5), x_train, y_train, train_groups, num_folds=5, verbose=False)
@@ -78,7 +81,7 @@ def LR_bare(x_train, x_test, y_train, y_test, train_groups):
     betas = np.random.rand(x_train.shape[1])
     _lambda = None 
     fair_loss_ = 'NO l2'
-    best_gamma = 0.1 # placeholder
+    best_gamma = 0.325 # placeholder
 
     unfair_preds = train(x_train, y_train, x_test, y_test, train_groups, fair_loss_, best_gamma, lambda_val=1)
 
