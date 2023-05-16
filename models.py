@@ -1,5 +1,4 @@
-from matplotlib import pyplot as plt
-import torch
+#%%
 from data_loader import data_loader, preprocess
 from model_helper import get_tuned_gamma, train, tune_lambda, plot_lambda_tuning
 import numpy as np
@@ -48,23 +47,31 @@ print(f'x_test shape: {x_test.shape}')
 print(f'y_test shape: {y_test.shape}')
 print(f'train_groups shape: {train_groups.shape}')
 
-# track time of LR_bare call 
-# start_time = time.perf_counter()
-# best_gamma = get_tuned_gamma(np.linspace(0.1, 1, 5), x_train, y_train, train_groups, num_folds=5, verbose=False)
+#Find_best_gamma(x_train, y_train, train_groups)
+best_gamma = 0.325
+#%%
+performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols)
 
-# print(f'best_gamma: {best_gamma}')
-# end_time = time.perf_counter()
-# execution_time = end_time - start_time
-# print("Execution time: {:.4f} seconds".format(execution_time))
-# # track time of LR_bare call 
-# start_time = time.perf_counter()
+#%%
 
-start_time = time.perf_counter()
-model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 10, fair_loss_=False, num_samples=num_samples)
-end_time = time.perf_counter()
-execution_time = end_time - start_time
-print("Execution time: {:.4f} seconds".format(execution_time))
 
+
+def Find_best_gamma(x_train, y_train, train_groups):
+    start_time = time.perf_counter()
+    best_gamma = get_tuned_gamma(np.linspace(0.1, 1, 5), x_train, y_train, train_groups, num_folds=5, verbose=False)
+
+    print(f'best_gamma: {best_gamma}')
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print("get_tuned_gamma execution time: {:.4f} seconds".format(execution_time))
+
+def Train_bare_lr(num_samples, x_train, x_val, y_train, y_val, train_groups, val_groups):
+    fair_loss_ = 'NO l2'
+    start_time = time.perf_counter()
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 10, fair_loss_=fair_loss_, num_samples=num_samples)
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print("Execution time: {:.4f} seconds".format(execution_time))
 """
 ###########
 def LR_bare(x_train, x_test, y_train, y_test, train_groups):

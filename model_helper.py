@@ -1,9 +1,8 @@
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 import scipy.optimize as opt
-from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, classification_report, precision_score, recall_score
+from sklearn.metrics import balanced_accuracy_score, f1_score, accuracy_score, classification_report
 from fairlearn.metrics import (
     demographic_parity_difference,
     demographic_parity_ratio,
@@ -11,7 +10,7 @@ from fairlearn.metrics import (
     equalized_odds_ratio
 )
 import torch
-from LR_pt import compute_cost, LogisticRegression, train_lr
+from LR_pt import compute_cost, train_lr
 
 def sigmoid(x):
     """
@@ -20,88 +19,6 @@ def sigmoid(x):
     This function assumes as input that you have already multiplied beta and X together
     """
     return 1/(1+np.exp(-x))
- 
- 
-# def logistic_loss(y_true, y_pred, eps = 1e-9):
-#     """
-#     Loss for the logistic regression, y_preds are probabilities
-#     eps: epsilon for stability
-#     """
-#     # print parameters
-#     return -np.mean(y_true * np.log(y_pred + eps) + (1-y_true) * np.log(1 - y_pred + eps))
-
-def l2_loss(beta):
-    """
-    L2-Regularisation
-    """
-    return np.sum(beta[1:]**2)
- 
-# def fair_loss_gpt(y, y_pred, groups):
-#     """
-#     Group fairness Loss
-#     GPT 4 PROPOSED THIS VERSION
-#     """
-#     y = np.array(y)
-#     y_pred = np.array(y_pred)
-#     groups = np.array(groups)
-
-#     unique_groups = np.unique(groups)
-#     assert len(unique_groups) == 2, "fair_loss function assumes exactly two groups"
-
-#     # Create masks for the two groups
-#     group1_mask = (groups == unique_groups[0])
-#     group2_mask = (groups == unique_groups[1])
-
-#     # Calculate the number of elements in each group
-#     n1 = np.sum(group1_mask)
-#     n2 = np.sum(group2_mask)
-
-#     # Calculate the pairwise differences between y_pred for the two groups
-#     y_pred_diff = y_pred[group1_mask].reshape(-1, 1) - y_pred[group2_mask].reshape(1, -1)
-
-#     # Create a pairwise distance matrix for y
-#     y_dist_matrix = (y[group1_mask].reshape(-1, 1) == y[group2_mask].reshape(1, -1)).astype(int)
-
-#     # Compute the cost
-#     cost = np.sum(y_dist_matrix * y_pred_diff)
-
-#     return (cost / (n1 * n2)) ** 2
- 
-# def compute_gradient(beta, X, y, groups, _lambda,_gamma):
-#     """Calculate the gradient - used for finding the best beta values. 
-#        You do not need to use groups and lambda (fmin_tnc expects same input as in func, that's why they are included here)"""
-#     grad = np.zeros(beta.shape)
-#     ## grad is a vector that is [#num_features, 1]
-#     # WE HAVE RECHECK THIS PART OF THE CODE
-#     grad = np.mean( (sigmoid(np.dot(X,beta)) - y)[:, np.newaxis] * X ) + 2 * _gamma * beta
-#     return grad
- 
-# def compute_cost(beta ,X, y, _lambda, _gamma, fair_loss_ = False, groups = None):
-#     """Computes cost function with constraints"""
-#     logits = np.dot(X, beta)
-#     y_pred = sigmoid(logits)
-    
-#     # CHECK IF WE SHOULD USE THE LOGITS OR THE Y_PRED IN FAIR LOSS?
-#     # AND SHOULD WE TUNE LAMBDA ALSO?
-#     # AND SHOULD WE USE THE SAME LAMBDA FOR BOTH GROUPS? YES 
-    
-#     if fair_loss_:
-#         return (
-#                 logistic_loss(y, y_pred)
-#                 + _gamma * l2_loss(beta)
-#                 + sum(_lambda * fair_loss_gpt(y, logits, groups[:, i]) for i in range(groups.shape[1]))
-#                 )
-#     elif not fair_loss_:
-#         return logistic_loss(y, y_pred) + _gamma * l2_loss(beta)
-#     elif fair_loss_ == 'NO l2':
-#         return logistic_loss(y, y_pred)
-    
-def standardize_tensor(tensor):
-    mean = torch.mean(tensor, dim=0)
-    std = torch.std(tensor, dim=0)
-    standardized_tensor = (tensor - mean) / std
-    return standardized_tensor
-
 
 def validation_mask(X, arr, _fold_size, i):
     start = i * _fold_size
@@ -114,31 +31,6 @@ def validation_mask(X, arr, _fold_size, i):
     mask = np.ones(len(X), dtype=bool)
     mask[indices] = False
     return mask
-def validation_mask_torch(X, arr, _fold_size, i):
-    start = i * _fold_size
-    end = (i + 1) * _fold_size
-    if len(arr) - end < _fold_size:
-        end = len(arr) - 1
-    indices = arr[start:end]
-    
-    # Create validation set mask
-    mask = torch.zeros(len(X), dtype=torch.bool)
-    mask[torch.tensor(indices)] = True
-    return mask
-def calculate_fair_accuracy(y_, y_pred, verbose=False):
-    tp = np.sum((y_ == 1) & (y_pred == 1))
-    tn = np.sum((y_ == 0) & (y_pred == 0))
-    fp = np.sum((y_ == 0) & (y_pred == 1))
-    fn = np.sum((y_ == 1) & (y_pred == 0))
- 
-    # Calculate TPR and TNR
-    tpr = tp / (tp + fn)
-    tnr = tn / (tn + fp)
-    
-    if verbose:
-        print("TPR:", tpr, "TNR:", tnr, "Accuracy:", (tpr + tnr)/2)
-    return (tpr + tnr)/2 
-
 
 def grid_search(gammas, X_train_cv, y_train_cv, train_groups, num_folds: int = 5, verbose = False, _lambda = 0):
     hyp_scores = []
@@ -168,7 +60,6 @@ def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_drop
     for i in range(iter - 1):
         mask = validation_mask(X_train_cv_dropped, arr, _fold_size, i)
         # standardize data for each fold
-        #X_train_scaled = standardize_tensor(X_train_cv_dropped[mask])
         scaler = StandardScaler()
         scaler.fit(X_train_cv_dropped[mask])
         X_train_scaled = scaler.transform(X_train_cv_dropped[mask])
@@ -195,7 +86,6 @@ def evaluate(X_test, y_test, result):
     predictions = sigmoid(np.dot(X_test, result[0]))
     binary_predictions = (predictions > 0.5).astype(int)
     # Calculate the accuracy of the logistic regression model
-    #print(f'{X_test.shape, y_test.shape, binary_predictions.shape=}')
     accuracy = np.mean(binary_predictions == y_test)
     print(f"Logistic regression accuracy: {accuracy * 100:.2f}%")
     return binary_predictions
@@ -208,11 +98,7 @@ def train(X_train, y_train, X_test_, y_test_, groups, fair_loss_, best_gamma, la
     return preds
 
 
-def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss_, best_gamma, one_hot_cols):
-    def get_preds(result, X_test):
-        predictions = sigmoid(np.dot(X_test, result[0]))
-        return (predictions > 0.5).astype(int)
-
+def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, best_gamma, one_hot_cols):
     performance_metrics = {'F1 Score': []}
     
     # Add F1 Score, Demographic Parity, and Equalized Odds metrics for each column
@@ -223,23 +109,22 @@ def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, fair_loss
         performance_metrics[f'{col} Equalized Odds Difference'] = []
         performance_metrics[f'{col} Equalized Odds Ratio'] = []
 
-    lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
-
-    device = torch.device("mps" if torch.cuda.is_available() else "cpu")
-
-    X_train_tensor = torch.from_numpy(x_test).float().to(device)
-    y_train_tensor = torch.from_numpy(y_test).long().view(-1, 1).to(device)
+    #lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
+    lambda_vals = [0.001, 1]
+    device = torch.device('mps' if torch.cuda.is_available() else 'cpu')
+    #convert x_test and y_test to tensors
+    x_test_tensor = torch.from_numpy(x_test).float().to(device)
     for lambda_val in lambda_vals:
-        betas = np.random.rand(x_train.shape[1])
-
-        #result = opt.fmin_tnc(func=compute_cost, x0=betas, maxfun = 1000, args = (x_train, y_train, lambda_val, best_gamma, fair_loss_, groups), xtol=1e-4, ftol=1e-4, approx_grad=True, messages=0)
-        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=1000, fair_loss_=fair_loss_, plot_loss=False, num_samples= 1000, val_check = False, lambda_val = lambda_val)
-        #test_preds = get_preds(result, x_test)
+        # Train model with a pytorch model
+        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=5, fair_loss_=True, plot_loss=True, 
+                                       num_samples= 5, val_check = False, _lambda=lambda_val, _gamma=best_gamma)
 
         # Compute predictions for test set with a pytorch model
-        y_test_pred = model(x_test) > 0.5
+        y_test_pred = model(x_test_tensor) > 0.5
         y_train_pred = y_train_pred.detach().numpy()
         test_preds = y_test_pred.detach().numpy()
+
+        print(f'{y_train_pred.shape=}, {test_preds.shape=}')
 
         # Generate masks dynamically for each column in one_hot_cols
         masks = {col: test_groups[:, i] == 1 for i, col in enumerate(one_hot_cols)}

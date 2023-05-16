@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import f1_score
 import time
-
+from sklearn.metrics import classification_report
 
 class LogisticRegression(nn.Module):
     def __init__(self, input_size):
@@ -21,7 +21,7 @@ def logistic_loss(y_true, y_pred, eps=1e-9):
 def l2_loss(beta, gamma):
     return gamma * torch.sum(beta[1:] ** 2)
 
-def fair_loss_gpt(y, y_pred, groups):
+def fair_loss(y, y_pred, groups):
     y = y.squeeze()
     y_pred = y_pred.squeeze()
     groups = groups.squeeze()
@@ -67,65 +67,7 @@ def fair_loss_sample(y, y_pred, groups, sample_size=10_000):
 
     return (cost / (sample_size * sample_size)) ** 2
 
-def fair_loss_batch(y, y_pred, groups, batch_size=500):
-    y = y.squeeze()
-    y_pred = y_pred.squeeze()
-    groups = groups.squeeze()
-
-    unique_groups = torch.unique(groups)
-    assert len(unique_groups) == 2, "fair_loss function assumes exactly two groups"
-
-    group1_mask = (groups == unique_groups[0])
-    group2_mask = (groups == unique_groups[1])
-
-    n1 = torch.sum(group1_mask)
-    n2 = torch.sum(group2_mask)
-
-    cost = 0
-    for i in range(0, n1, batch_size):
-        for j in range(0, n2, batch_size):
-            y_pred_diff = y_pred[group1_mask][i:i+batch_size].view(-1, 1) - y_pred[group2_mask][j:j+batch_size].view(1, -1)
-            y_dist_matrix = (y[group1_mask][i:i+batch_size].view(-1, 1) == y[group2_mask][j:j+batch_size].view(1, -1)).float()
-            cost += torch.sum(y_dist_matrix * y_pred_diff)
-
-    return (cost / (n1 * n2)) ** 2
-
-# def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False, sample_size=5000):
-#     logits = model(X)
-#     y_pred = torch.sigmoid(logits)
-#     beta = list(model.parameters())[0]
-
-#     logistic_loss_value = logistic_loss(y, y_pred)
-#     l2_loss_value = l2_loss(beta, _gamma)
-    
-#     if fair_loss_:
-#         fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i], sample_size) for i in range(groups.shape[1]))
-#         total_loss = logistic_loss_value + l2_loss_value + fair_loss_value
-
-#         # log the values
-#         print("logistic_loss:", logistic_loss_value.item(), "(", (logistic_loss_value / total_loss).item() * 100, "%)")
-#         print("l2_loss:", l2_loss_value.item(), "(", (l2_loss_value / total_loss).item() * 100, "%)")
-#         print("fair_loss:", fair_loss_value.item(), "(", (fair_loss_value / total_loss).item() * 100, "%)")
-
-#         return total_loss
-
-#     elif not fair_loss_:
-#         total_loss = logistic_loss_value + l2_loss_value
-#         # log the values
-#         print("logistic_loss:", logistic_loss_value.item(), "(", (logistic_loss_value / total_loss).item() * 100, "%)")
-#         print("l2_loss:", l2_loss_value.item(), "(", (l2_loss_value / total_loss).item() * 100, "%)")
-
-#         return total_loss
-#     elif fair_loss_ == 'NO l2':
-#         total_loss = logistic_loss_value
-#         # log the values
-#         print("logistic_loss:", logistic_loss_value.item())
-
-#         return total_loss
-
 def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
-    # print(f'The type of X is {type(X)}, {X}')
-    # print(f'The type of X is {type(model)}, {model.shape}')
     logits = model(X)
     y_pred = torch.sigmoid(logits)
     beta = list(model.parameters())[0]
@@ -148,10 +90,7 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
     elif fair_loss_ == 'NO l2':
         return logistic_loss(y, y_pred)
 
-# Convert numpy arrays to PyTorch tensors and make sure they are float32 and have correct shapes
-from sklearn.metrics import classification_report
-
-def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1000, val_check = True):
+def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1000, val_check = True, _lambda=1, _gamma=0.1, learning_rate=0.01):
     # Check if CUDA is available
     device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     print('Using device:', device)
@@ -160,6 +99,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
     y_train_tensor = torch.from_numpy(y_train).long().view(-1, 1).to(device)
     groups_tensor = torch.from_numpy(groups).long().to(device)
 
+    # Check if validation data is provided
     if val_check:
         val_groups_tensor = torch.from_numpy(val_groups).long().to(device)
         X_val_tensor = torch.from_numpy(X_val).float().to(device)
@@ -168,18 +108,15 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
     # Create the logistic regression model
     model = LogisticRegression(input_size=X_train.shape[1]).to(device)
 
-    # Set the learning rate, number of epochs, and other hyperparameters
-    learning_rate = 0.1
-    _lambda = 0.01
-    _gamma = 0.01
-
     # Create the optimizer
     optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
 
+    # Create lists to store the losses and F1 scores
     train_losses = []
     val_losses = []
     train_f1_scores = []
     val_f1_scores = []
+
     # Train the model
     for epoch in range(num_epochs):
         start_time = time.perf_counter()
@@ -199,7 +136,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             model.eval()
             with torch.no_grad():
                 val_cost = compute_cost(model, X_val_tensor, y_val_tensor, val_groups_tensor, _lambda, _gamma, fair_loss_=fair_loss_)
-        
+
             val_losses.append(val_cost.item())
             # Calculate F1 score for validation data
             val_pred = model(X_val_tensor) > 0.5
@@ -222,7 +159,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         print(f'Epoch {epoch} took {end_time - start_time:.2f} seconds')
     
     if plot_loss:
-        # if val_check == False then plot only train loss and f1 score
         fig, axs = plt.subplots(2)
         axs[0].plot(train_losses, label='Train Loss')
         axs[0].plot(val_losses, label='Val Loss')
@@ -235,11 +171,10 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         axs[1].set_xlabel('Epoch')
         axs[1].set_ylabel('F1 Score')
         axs[1].legend()
-        # save plot
-        plt.savefig(f'plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}.png')
+        plt.savefig(f'plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L{_lambda}_G{_gamma}.png')
+    
     model.eval()
     if val_check:
-        # Generate classification report
         with torch.no_grad():
             y_val_pred = model(X_val_tensor) > 0.5
             print(classification_report(y_val_tensor.numpy(), y_val_pred.numpy()))
@@ -248,9 +183,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             y_train_pred = model(X_train_tensor) > 0.5
         return y_train_pred, model
 
-    # save model
-    torch.save(model.state_dict(), f'models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}.pt')
+    torch.save(model.state_dict(), f'models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L{_lambda}_G{_gamma}.pt')
     
     return model, fig, axs
-
-
