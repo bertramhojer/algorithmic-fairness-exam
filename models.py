@@ -49,13 +49,14 @@ print(f'train_groups shape: {train_groups.shape}')
 
 #Find_best_gamma(x_train, y_train, train_groups)
 best_gamma = 0.325
+best_lambda = 0.001
 #lambda_vals = [0.001, 1]
 lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
-#%%
-performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals)
-plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols)
 
-#%%
+
+def find_best_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals):
+    performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals)
+    plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols)
 
 
 #%%
@@ -71,64 +72,29 @@ def Find_best_gamma(x_train, y_train, train_groups):
 def Train_bare_lr(num_samples, x_train, x_val, y_train, y_val, train_groups, val_groups):
     fair_loss_ = 'NO l2'
     start_time = time.perf_counter()
-    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 10, fair_loss_=fair_loss_, num_samples=num_samples)
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 1000, fair_loss_= fair_loss_, num_samples=num_samples)
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print("Execution time: {:.4f} seconds".format(execution_time))
-"""
-###########
-def LR_bare(x_train, x_test, y_train, y_test, train_groups):
-    betas = np.random.rand(x_train.shape[1])
-    _lambda = None 
-    fair_loss_ = 'NO l2'
-    best_gamma = 0.325 # placeholder
 
-    unfair_preds = train(x_train, y_train, x_test, y_test, train_groups, fair_loss_, best_gamma, lambda_val=1)
 
-# track time of LR_bare call 
-start_time = time.perf_counter()
+#Train_bare_lr(num_samples, x_train, x_val, y_train, y_val, train_groups, val_groups)
 
-# Function call
-LR_bare(x_train, x_test, y_train, y_test, train_groups)
 
-end_time = time.perf_counter()
-execution_time = end_time - start_time
-
-print("Execution time: {:.4f} seconds".format(execution_time))
-#########
-
-def LR_l2(x_train, x_test, y_train, y_test, train_groups):
-    betas = np.random.rand(x_train.shape[1])
-    gammas = np.linspace(0.1, 1, 10)
-    best_gamma = get_tuned_gamma(gammas, x_train, y_train, num_folds=5, verbose=False)
-
-    betas = np.random.rand(x_train.shape[1])
-    _lambda = None 
+def LR_l2(x_train, x_test, y_train, y_test, train_groups, best_gamma):
     fair_loss_ = False
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 1000, fair_loss_= fair_loss_, num_samples=num_samples)
 
-    unfair_preds = train(x_train, y_train, x_test, y_test, train_groups, best_gamma, fair_loss_)
-
-#LR_l2(x_train, x_test, y_train, y_test, train_groups) 
+#LR_l2(x_train, x_test, y_train, y_test, train_groups, best_gamma) 
 
 #####################
 
-def LR_L2_fairloss(one_hot_cols, x_train, x_test, y_train, y_test, train_groups, test_groups):
-    fair_loss_ = True
-    best_gamma = 0.1
-    performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, fair_loss_, best_gamma, one_hot_cols=one_hot_cols)
-
-    lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
-    plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols=one_hot_cols)
-
-
-    betas = np.random.rand(x_train.shape[1])
-    _lambda = None 
+def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fair_loss_= True):
     fair_loss_ = True
 
-    unfair_preds = train(x_train, y_train, x_test, y_test, train_groups, fair_loss_, best_gamma)
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 1000, fair_loss_= fair_loss_, num_samples=num_samples)
 
-#LR_L2_fairloss(one_hot_cols, x_train, x_test, y_train, y_test, train_groups, test_groups) 
+LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fair_loss_= True, num_samples=num_samples)) 
 #####################
 
 # PCA
-"""

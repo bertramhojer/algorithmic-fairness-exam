@@ -5,6 +5,7 @@ import torch.nn as nn
 from sklearn.metrics import f1_score
 import time
 from sklearn.metrics import classification_report
+from tqdm import tqdm
 
 class LogisticRegression(nn.Module):
     def __init__(self, input_size):
@@ -52,7 +53,7 @@ def fair_loss(y, y_pred, groups):
 
     return (cost / (n1 * n2)) ** 2
 
-def fair_loss_sample(y, y_pred, groups, sample_size=10_000):
+def fair_loss_sample(y, y_pred, groups, sample_size=5_000):
     y = y.squeeze()
     y_pred = y_pred.squeeze()
     groups = groups.squeeze()
@@ -81,17 +82,17 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
     logits = model(X)
     y_pred = torch.sigmoid(logits)
     beta = list(model.parameters())[0]
-    logistic_loss_value = logistic_loss(y, y_pred)
-    l2_loss_value = l2_loss(beta, _gamma)
 
-    if fair_loss_:
+    if fair_loss_ == True:
+        logistic_loss_value = logistic_loss(y, y_pred)
+        l2_loss_value = l2_loss(beta, _gamma)
         fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i]) for i in range(groups.shape[1]))
         total_loss = logistic_loss_value + l2_loss_value + fair_loss_value
 
         # log the values
-        print("logistic_loss:", logistic_loss_value.item(), "(", (logistic_loss_value / total_loss).item() * 100, "%)")
-        print("l2_loss:", l2_loss_value.item(), "(", (l2_loss_value / total_loss).item() * 100, "%)")
-        print("fair_loss:", fair_loss_value.item(), "(", (fair_loss_value / total_loss).item() * 100, "%)")
+        # print("logistic_loss:", logistic_loss_value.item(), "(", (logistic_loss_value / total_loss).item() * 100, "%)")
+        # print("l2_loss:", l2_loss_value.item(), "(", (l2_loss_value / total_loss).item() * 100, "%)")
+        # print("fair_loss:", fair_loss_value.item(), "(", (fair_loss_value / total_loss).item() * 100, "%)")
 
         return total_loss
     
@@ -100,7 +101,7 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
     elif fair_loss_ == 'NO l2':
         return logistic_loss(y, y_pred)
 
-def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1000, val_check = True, _lambda=1, _gamma=0.1, learning_rate=0.01):
+def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1_000_000, val_check = True, _lambda=1, _gamma=0.1, learning_rate=0.01):
     # Check if MPS is available
     device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     print('Using device:', device)
@@ -127,10 +128,13 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
     train_f1_scores = []
     val_f1_scores = []
 
+    # early stopping
+    patience = 3  # or any other number of your choosing
+    best_val_loss = float('inf')
+    epochs_without_improvement = 0
     # Train the model
-    for epoch in range(num_epochs):
+    for epoch in tqdm(range(num_epochs)):
         start_time = time.perf_counter()
-        print('Epoch:', epoch + 1)
         model.train()
 
         # Calculate the cost
@@ -163,10 +167,22 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         if (epoch + 1) % 10 == 0:
             if val_check:
                 print(f'Epoch {epoch + 1}/{num_epochs}, Train Cost: {train_cost.item()}, Val Cost: {val_cost.item()}')
+                end_time = time.perf_counter()
+                print(f'Epoch {epoch} took {end_time - start_time:.2f} seconds')
             else:  
                 print(f'Epoch {epoch + 1}/{num_epochs}, Train Cost: {train_cost.item()}')
-        end_time = time.perf_counter()
-        print(f'Epoch {epoch} took {end_time - start_time:.2f} seconds')
+        
+       
+
+        if val_check:
+                if val_cost.item() < best_val_loss:
+                    best_val_loss = val_cost.item()
+                    epochs_without_improvement = 0
+                else:
+                    epochs_without_improvement += 1
+                    if epochs_without_improvement == patience:
+                        print("Stopping early!")
+                        break
         
     if plot_loss:
         fig, axs = plt.subplots(2)

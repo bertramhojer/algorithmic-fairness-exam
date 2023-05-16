@@ -4,7 +4,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 import numpy as np
 
-def data_loader(race_cols, num=10000):
+def data_loader(race_cols, num=10000, one_hot=True):
     # load csv file processed_data if it exists. Check if it exists with os module
     print('Loading data...')
     if os.path.exists('data/processed_data.csv'):
@@ -13,13 +13,13 @@ def data_loader(race_cols, num=10000):
         #check if the number of rows is close to the number of rows we want
         if df.shape[0] > num * 1.1 and df.shape[0] < num * 0.9:
             print('processed_data.csv does not have the correct number of rows. Creating new file.')
-            df = process_data(num, race_cols)
+            df = process_data(num, race_cols, one_hot)
     else:
         print('processed_data.csv does not exist. Loading data from original file.')
-        df = process_data(num, race_cols)
+        df = process_data(num, race_cols, one_hot)
     return df
 
-def process_data(num, race_cols):
+def process_data(num, race_cols, one_hot):
     df = pd.read_csv('data/hmda_2017_nationwide_all-records_codes.csv').sample(num, random_state=42)
     print(f'Num samples = {df.shape[0]}')
 
@@ -31,9 +31,10 @@ def process_data(num, race_cols):
 
     # One-hot encoding 'race_ethnicity' column
     df = df[df['race_ethnicity'].isin([1,2,3,4,5,9])]
-    one_hot_race = pd.get_dummies(df['race_ethnicity'], prefix='Race')
-    one_hot_race.columns = race_cols
-    df = pd.concat([df, one_hot_race], axis=1)
+    if not one_hot: 
+        one_hot_race = pd.get_dummies(df['race_ethnicity'], prefix='Race')
+        one_hot_race.columns = race_cols
+        df = pd.concat([df, one_hot_race], axis=1)
 
 
     df['joint_sex'] = df['applicant_sex'].astype(str) + '_' + df['co_applicant_sex'].astype(str)
