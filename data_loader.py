@@ -31,7 +31,7 @@ def process_data(num, race_cols, one_hot):
 
     # One-hot encoding 'race_ethnicity' column
     df = df[df['race_ethnicity'].isin([1,2,3,4,5,9])]
-    if not one_hot: 
+    if one_hot: 
         one_hot_race = pd.get_dummies(df['race_ethnicity'], prefix='Race')
         one_hot_race.columns = race_cols
         df = pd.concat([df, one_hot_race], axis=1)

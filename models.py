@@ -5,7 +5,7 @@ import numpy as np
 from PCA import project_and_plot_PCA, plot_reconstruction_loss, fair_PCA, corr_plot
 import pandas as pd
 from Bootstrap_and_eval import eval, bootstrap_eval_one, plot_violin_metrics_with_ci_single
-from NN import train_and_evaluate_nn
+from NN import train_and_evaluate_nn, evaluate_model
 import time
 from LR_pt import train_lr
 
@@ -38,7 +38,9 @@ print(f'All rows in train_groups sum to 1: {np.allclose(np.sum(train_groups, axi
 # convert y_train, y_val, y_test to numpy arrays
 y_train = y_train.to_numpy()
 y_val = y_val.to_numpy()
+y_test = y_test.to_numpy()
 
+print()
 print(f'x_train shape: {x_train.shape}')
 print(f'y_train shape: {y_train.shape}')
 print(f'x_val shape: {x_val.shape}')
@@ -46,7 +48,8 @@ print(f'y_val shape: {y_val.shape}')
 print(f'x_test shape: {x_test.shape}')
 print(f'y_test shape: {y_test.shape}')
 print(f'train_groups shape: {train_groups.shape}')
-
+print()
+#%%
 #Find_best_gamma(x_train, y_train, train_groups)
 best_gamma = 0.325
 best_lambda = 0.001
@@ -94,7 +97,30 @@ def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fai
 
     model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs = 1000, fair_loss_= fair_loss_, num_samples=num_samples)
 
-LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fair_loss_= True, num_samples=num_samples)) 
+#LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fair_loss_= True, num_samples=num_samples)) 
 #####################
 
-# PCA
+# train NN model 
+def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=1000, batch_size=32, lr=0.1, plot_loss=True, seed=4206942):
+    start_time = time.perf_counter()
+    pca = True
+    model, accuracy = train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=num_epochs, batch_size=batch_size, 
+                                            lr=lr, plot_loss=plot_loss, seed=seed, f1_freq_=1)
+    end_time = time.perf_counter()
+    execution_time = end_time - start_time
+    print("Execution time: {:.4f} seconds".format(execution_time))
+
+#Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=20, batch_size=512, lr=0.001, plot_loss=True, seed=4206942)
+
+
+model_path = "models/NN_pca:False_E:100_lr:0.001_bs:512.pt"
+pca_state = False
+print()
+print("evaluate_model on test set")
+evaluate_model(model_path,x_train ,x_test, y_test, x_test.shape[1], 2, pca=pca_state, train_groups=train_groups)
+print("evaluate_model on train set")
+print()
+evaluate_model(model_path,x_train ,x_train, y_train, x_test.shape[1], 2, pca=pca_state, train_groups=train_groups)
+print()
+print("evaluate_model on val set")
+evaluate_model(model_path,x_train ,x_val, y_val, x_test.shape[1], 2, pca=pca_state, train_groups=train_groups)
