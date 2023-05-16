@@ -9,6 +9,29 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from PCA import fair_PCA
 
+
+# Define the neural network model
+class SimpleNN(nn.Module):
+    def __init__(self, input_size, num_classes):
+        super(SimpleNN, self).__init__()
+        self.fc1 = nn.Linear(input_size, 64)
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(64, 128)
+        # self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, num_classes)
+        self.softmax = nn.Softmax(dim=1)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        # x = self.fc3(x)
+        # x = self.relu(x)
+        x = self.fc4(x)
+        x = self.softmax(x)
+        return x
+    
 def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=20, batch_size=128, lr=0.001, plot_loss=False, seed=4206942, f1_freq_=5):
     # Set seeds for reproducibility
     np.random.seed(seed)
@@ -37,29 +60,6 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-
-    # Define the neural network model
-    class SimpleNN(nn.Module):
-        def __init__(self, input_size, num_classes):
-            super(SimpleNN, self).__init__()
-            self.fc1 = nn.Linear(input_size, 64)
-            self.relu = nn.ReLU()
-            self.fc2 = nn.Linear(64, 128)
-            # self.fc3 = nn.Linear(256, 128)
-            self.fc4 = nn.Linear(128, num_classes)
-            self.softmax = nn.Softmax(dim=1)
-
-        def forward(self, x):
-            x = self.fc1(x)
-            x = self.relu(x)
-            x = self.fc2(x)
-            x = self.relu(x)
-            # x = self.fc3(x)
-            # x = self.relu(x)
-            x = self.fc4(x)
-            x = self.softmax(x)
-            return x
 
     # Initialize the model, loss function and optimizer
     input_size = x_train.shape[1]
@@ -180,25 +180,6 @@ def evaluate_model(model_path, x_train, x_test, y_test, input_size, num_classes,
         x_train = X_fair_PCA
         x_test = x_test @ U
         print(f"X_train_pca shape: {x_train.shape}")
-
-    # Define the same structure for your model
-    class SimpleNN(nn.Module):
-        def __init__(self, input_size, num_classes):
-            super(SimpleNN, self).__init__()
-            self.fc1 = nn.Linear(input_size, 64)
-            self.relu = nn.ReLU()
-            self.fc2 = nn.Linear(64, 128)
-            self.fc4 = nn.Linear(128, num_classes)
-            self.softmax = nn.Softmax(dim=1)
-
-        def forward(self, x):
-            x = self.fc1(x)
-            x = self.relu(x)
-            x = self.fc2(x)
-            x = self.relu(x)
-            x = self.fc4(x)
-            x = self.softmax(x)
-            return x
 
     # Initialize the model
     model = SimpleNN(x_train.shape[1], num_classes).to(device)

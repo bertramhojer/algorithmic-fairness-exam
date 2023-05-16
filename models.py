@@ -103,17 +103,17 @@ def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fai
 # train NN model 
 def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=1000, batch_size=32, lr=0.1, plot_loss=True, seed=4206942):
     start_time = time.perf_counter()
-    pca = True
+    pca = False
     model, accuracy = train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=num_epochs, batch_size=batch_size, 
                                             lr=lr, plot_loss=plot_loss, seed=seed, f1_freq_=1)
     end_time = time.perf_counter()
     execution_time = end_time - start_time
     print("Execution time: {:.4f} seconds".format(execution_time))
 
-#Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=20, batch_size=512, lr=0.001, plot_loss=True, seed=4206942)
+Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=2, batch_size=512, lr=0.001, plot_loss=True, seed=2)
 
 
-model_path = "models/NN_pca:False_E:100_lr:0.001_bs:512.pt"
+model_path = "models/NN_pca:False_E:2_lr:0.001_bs:512.pt"
 pca_state = False
 print()
 print("evaluate_model on test set")
