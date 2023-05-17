@@ -44,10 +44,10 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
         LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda,  fair_loss_= True)
 
     if train_NN:
-        Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=50, batch_size=512, lr=0.00000001, plot_loss=True, seed=2)
+        Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=10, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
     
     if Train_NN_fairpca_:
-        Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=100, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
+        Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=10, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
 
 @timer
 def find_best_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals):
