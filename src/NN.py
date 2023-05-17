@@ -18,9 +18,9 @@ class SimpleNN(nn.Module):
         self.fc_layers = nn.Sequential(
             nn.Linear(input_size, 64),
             nn.ReLU(),
-            nn.Linear(64, 128),
+            nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(128, num_classes),
+            nn.Linear(32, num_classes),
             nn.Softmax(dim=1)
         )
 
@@ -42,6 +42,7 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
     # Set seeds for reproducibility
     np.random.seed(seed)
     torch.manual_seed(seed)
+
     if pca:
         print(f"'Number of components:' , {x_train.shape[1]}")
         X_fair_PCA, U, explained_variance = fair_PCA(x_train, n_components=x_train.shape[1], groups=train_groups)
@@ -71,7 +72,9 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
     input_size = x_train.shape[1]
     num_classes = len(np.unique(y_train))
     model = SimpleNN(input_size, num_classes)
-    criterion = nn.CrossEntropyLoss()
+    imbalanced_ratio = ((y_train == 1).sum())/ ((y_train == 0).sum())
+    print(f"Imbalanced ratio: {imbalanced_ratio}")
+    criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([imbalanced_ratio]))
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
     # Train the model
@@ -93,7 +96,12 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
         for batch_idx, (data, target) in enumerate(train_loader):
             optimizer.zero_grad()
             output = model(data)
-            loss = criterion(output, target)
+            # argmax to get the predicted class
+            _, pred_classes = torch.max(output, 1)
+            print(f'output shape: {output.shape}, output[:2]: {output[:2]}, dtype: {pred_classes.dtype}')
+            print(f'pred_classes shape: {pred_classes.shape}, pred_classes[:2]: {pred_classes[:2]}, dtype: {pred_classes.dtype}')
+            print(f'target shape: {target.shape}, target[:2]: {target[:2]}, type: {target.dtype=}')
+            loss = criterion(pred_classes, target)
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
@@ -115,6 +123,7 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
         with torch.no_grad():
             for val_data, val_target in val_loader:
                 val_output = model(val_data)
+
                 v_loss = criterion(val_output, val_target)
                 val_loss += v_loss.item()
 

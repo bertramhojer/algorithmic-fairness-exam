@@ -78,7 +78,7 @@ def fair_loss_sample(y, y_pred, groups, sample_size=5_000):
 
     return (cost / (sample_size * sample_size)) ** 2
 
-def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
+def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False, sample_size_=5_000):
     logits = model(X)
     y_pred = torch.sigmoid(logits)
     beta = list(model.parameters())[0]
@@ -86,7 +86,7 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
     if fair_loss_ == True:
         logistic_loss_value = logistic_loss(y, y_pred)
         l2_loss_value = l2_loss(beta, _gamma)
-        fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i]) for i in range(groups.shape[1]))
+        fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i], sample_size=sample_size_) for i in range(groups.shape[1]))
         total_loss = logistic_loss_value + l2_loss_value + fair_loss_value
 
         # log the values
@@ -101,7 +101,7 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False):
     elif fair_loss_ == 'NO l2':
         return logistic_loss(y, y_pred)
 
-def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1_000_000, val_check = True, _lambda=1, _gamma=0.1, learning_rate=0.01):
+def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100, fair_loss_=False, plot_loss=True, num_samples= 1_000_000, val_check = True, _lambda=1, _gamma=0.1, learning_rate=0.01, sample_size_=1_000):
     # Check if MPS is available
     device = torch.device("mps" if torch.cuda.is_available() else "cpu")
     print('Using device:', device)
@@ -138,7 +138,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         model.train()
 
         # Calculate the cost
-        train_cost = compute_cost(model, X_train_tensor, y_train_tensor, groups_tensor, _lambda, _gamma, fair_loss_=fair_loss_)
+        train_cost = compute_cost(model, X_train_tensor, y_train_tensor, groups_tensor, _lambda, _gamma, fair_loss_=fair_loss_, sample_size_=sample_size_)
 
         # Zero gradients, perform a backward pass, and update the weights.
         optimizer.zero_grad()
@@ -149,7 +149,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             # Evaluate on validation set
             model.eval()
             with torch.no_grad():
-                val_cost = compute_cost(model, X_val_tensor, y_val_tensor, val_groups_tensor, _lambda, _gamma, fair_loss_=fair_loss_)
+                val_cost = compute_cost(model, X_val_tensor, y_val_tensor, val_groups_tensor, _lambda, _gamma, fair_loss_=fair_loss_, sample_size_=sample_size_)
 
             val_losses.append(val_cost.item())
             # Calculate F1 score for validation data
@@ -164,7 +164,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         train_f1_scores.append(train_f1)
 
 
-        if (epoch + 1) % 10 == 0:
+        if (epoch + 1) % 20 == 0:
             if val_check:
                 print(f'Epoch {epoch + 1}/{num_epochs}, Train Cost: {train_cost.item()}, Val Cost: {val_cost.item()}')
                 end_time = time.perf_counter()
