@@ -1,5 +1,7 @@
+import json
+import pandas as pd
 from data_loader import data_loader, preprocess
-from model_helper import get_tuned_gamma, tune_lambda, plot_lambda_tuning, timer
+from model_helper import get_tuned_gamma, plot_lambda_tuning, timer, tune_lambda_cv, tune_lambda_old
 import numpy as np
 from NN import train_and_evaluate_nn, evaluate_model
 from LR_pt import train_lr
@@ -23,7 +25,7 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
     y_val = y_val.to_numpy()
     y_test = y_test.to_numpy()
     best_gamma = 2.575
-    best_lambda = 0.1
+    best_lambda = 1
 
     # If hyp_params is set to True, compute gamma and lambda from scratch
 
@@ -44,15 +46,20 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
         LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda,  fair_loss_= True)
 
     if train_NN:
-        Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=50, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
+        Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=10, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
     
     if Train_NN_fairpca_:
-        Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=50, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
+        Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=10, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
 
 @timer
 def find_best_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals):
-    performance_metrics = tune_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals)
-    performance_metrics.to_csv('../plots/performance_metrics_lambda_tuning.csv')
+    performance_metrics = tune_lambda_cv(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals, )
+    # save performance metrics to csv via a dict to csv method
+    with open('../plots/performance_metrics_lambda_tuning.json', 'w') as json_file:
+        json.dump(performance_metrics, json_file)
+
+    df = pd.DataFrame.from_dict(performance_metrics, orient='columns')
+    df.to_csv('../plots/performance_metrics_lambda_tuning.csv')
     plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols)
 
 @timer
@@ -74,7 +81,7 @@ def LR_l2(x_train, x_val, y_val, y_train, train_groups, val_groups, best_gamma):
 def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda ,fair_loss_=True):
     fair_loss_ = True
     model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=2000, 
-                               fair_loss_=fair_loss_, _gamma=best_gamma, _lambda=best_lambda, sample_size_=5_000 )
+                               fair_loss_=fair_loss_, _gamma=best_gamma, _lambda=best_lambda, sample_size_ = 5_000 )
 
 @timer
 def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=100, batch_size=512, lr=0.00001, plot_loss=True, seed=4206942):
@@ -89,6 +96,6 @@ def Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_group
     evaluate_model(model_path, x_train, x_test, y_test, input_size, num_classes=2, pca=True, train_groups=train_groups)
 
 if __name__ == '__main__':
-    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, train_LR_L2_fairloss=False, 
-         train_NN=False, hyp_params=False, Train_NN_fairpca_ = True)
+    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=True, train_LR_L2_fairloss=False, 
+         train_NN=False, hyp_params=False, Train_NN_fairpca_ = False)
  

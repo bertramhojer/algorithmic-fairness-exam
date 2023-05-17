@@ -14,6 +14,8 @@ import torch
 from LR_pt import compute_cost, train_lr
 from tqdm import tqdm
 import time
+from sklearn.model_selection import KFold
+from collections import defaultdict
 
 def timer(func):
     def wrapper(*args, **kwargs):
@@ -109,7 +111,7 @@ def train(X_train, y_train, X_test_, y_test_, groups, fair_loss_, best_gamma, la
     return preds
 
 
-def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals):
+def tune_lambda_old(x_train, y_train, test_groups, groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals):
     performance_metrics = {'F1 Score': []}
     
     # Add F1 Score, Demographic Parity, and Equalized Odds metrics for each column
@@ -193,8 +195,7 @@ def plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols):
     # save the plot
     plt.savefig('../plots/lambda_tuning.png')
 
-from sklearn.model_selection import KFold
-from collections import defaultdict
+
 
 def tune_lambda_cv(x_train, y_train, test_groups, groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals, num_folds=3):
     # Initialize KFold cross-validator
@@ -208,18 +209,16 @@ def tune_lambda_cv(x_train, y_train, test_groups, groups, x_test, y_test, best_g
         performance_metrics[f'{col} Equalized Odds Difference'] = []
         performance_metrics[f'{col} Equalized Odds Ratio'] = []
 
-    device = torch.device('mps' if torch.cuda.is_available() else 'cpu')
-    x_test_tensor = torch.from_numpy(x_test).float().to(device)
-
     for lambda_val in tqdm(lambda_vals):
         f1_scores = []
         for train_index, val_index in kf.split(x_train):
             x_train_fold, x_val_fold = x_train[train_index], x_train[val_index]
             y_train_fold, y_val_fold = y_train[train_index], y_train[val_index]
-            val_groups = test_groups[val_index, :] 
-
-            y_train_pred, model = train_lr(x_train_fold, y_train_fold, 'X_val', 'y_val', groups, 'val_groups', num_epochs=500, fair_loss_=True, plot_loss=True, 
-                                           num_samples=2000, val_check = False, _lambda=lambda_val, _gamma=best_gamma)
+            groups_fold = groups[train_index, :]
+            val_groups = groups[val_index, :] 
+            print(f'{x_train_fold.shape=}, {x_val_fold.shape=}, {y_train_fold.shape=}, {y_val_fold.shape=}, {val_groups.shape=}, {groups.shape=}')
+            y_train_pred, model = train_lr(x_train_fold, y_train_fold, 'X_val', 'y_val', groups_fold, 'val_groups', num_epochs=100, fair_loss_=True, plot_loss=True, 
+                                           num_samples=1000, val_check = False, _lambda=lambda_val, _gamma=best_gamma)
 
             y_val_pred = model(x_val_fold) > 0.5
             y_train_pred = y_train_pred.detach().numpy()
@@ -230,8 +229,8 @@ def tune_lambda_cv(x_train, y_train, test_groups, groups, x_test, y_test, best_g
             # Initialize a dictionary to store the sum of the metrics for each fold
             metrics_sums = defaultdict(lambda: defaultdict(float))
 
-            for col in one_hot_cols:
-                mask = val_groups[:, i] == 1
+            for idx, col in enumerate(one_hot_cols):
+                mask = val_groups[:, idx] == 1
 
                 if val_preds[mask].size == 0:
                     print(f'No {col} predictions for this lambda value {lambda_val}')
@@ -256,6 +255,73 @@ def tune_lambda_cv(x_train, y_train, test_groups, groups, x_test, y_test, best_g
             performance_metrics[f'{col} Equalized Odds Ratio'].append(metrics_sums[col]['Equalized Odds Ratio'] / num_folds)
 
     return performance_metrics
-                                                              
-                                                              
 
+
+
+
+def calculate_metrics(y_true, y_pred, mask, col):
+    metrics = {}
+    if y_pred[mask].size == 0:
+        print(f'No {col} predictions')
+        metrics['F1 Score'] = 0
+    else:
+        metrics['F1 Score'] = f1_score(y_true[mask], y_pred[mask])
+    metrics['Demographic Parity Difference'] = demographic_parity_difference(y_true, y_pred, sensitive_features=mask)
+    metrics['Demographic Parity Ratio'] = demographic_parity_ratio(y_true, y_pred, sensitive_features=mask)
+    metrics['Equalized Odds Difference'] = equalized_odds_difference(y_true, y_pred, sensitive_features=mask)
+    metrics['Equalized Odds Ratio'] = equalized_odds_ratio(y_true, y_pred, sensitive_features=mask)
+    return metrics
+
+def train_and_evaluate_fold(x_train, y_train, x_val, y_val, val_groups, one_hot_cols, lambda_val, best_gamma):
+    y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', val_groups, 'test_groups', num_epochs=500, fair_loss_=True, num_samples=2000, _lambda=lambda_val, _gamma=best_gamma)
+    y_val_pred = model(x_val) > 0.5
+    f1_score = f1_score(y_val, y_val_pred.detach().numpy())
+    metrics_sums = defaultdict(lambda: defaultdict(float))
+    for i, col in enumerate(one_hot_cols):
+        mask = val_groups[:, i] == 1
+        metrics = calculate_metrics(y_val, y_val_pred.detach().numpy(), mask, col)
+        for key, value in metrics.items():
+            metrics_sums[col][key] += value
+    return f1_score, metrics_sums                                                
+
+def tune_lambda_cv_(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals, num_folds=3):
+    # Initialize KFold cross-validator
+    kf = KFold(n_splits=num_folds)
+    
+    # Initialize performance metrics
+    performance_metrics = {'F1 Score': []}
+    for col in one_hot_cols:
+        performance_metrics[f'F1 Score for {col}'] = []
+        performance_metrics[f'{col} Demographic Parity Difference'] = []
+        performance_metrics[f'{col} Demographic Parity Ratio'] = []
+        performance_metrics[f'{col} Equalized Odds Difference'] = []
+        performance_metrics[f'{col} Equalized Odds Ratio'] = []
+
+    for lambda_val in tqdm(lambda_vals):
+        f1_scores = []
+        metrics_sums = defaultdict(lambda: defaultdict(float))
+
+        for train_index, val_index in kf.split(x_train):
+            x_train_fold, x_val_fold = x_train[train_index], x_train[val_index]
+            y_train_fold, y_val_fold = y_train[train_index], y_train[val_index]
+            val_groups = train_groups[val_index, :] 
+
+            # Train and evaluate the model for this fold
+            f1_score, metrics_sum = train_and_evaluate_fold(x_train_fold, y_train_fold, x_val_fold, y_val_fold, val_groups, one_hot_cols, lambda_val, best_gamma)
+
+            f1_scores.append(f1_score)
+
+            # Accumulate the metrics
+            for col in one_hot_cols:
+                for metric, value in metrics_sum[col].items():
+                    metrics_sums[col][metric] += value
+
+        # Calculate average F1 score and add to performance_metrics
+        performance_metrics['F1 Score'].append(np.mean(f1_scores))
+
+        # Calculate average of other metrics and add to performance_metrics
+        for col in one_hot_cols:
+            for metric in ['F1 Score', 'Demographic Parity Difference', 'Demographic Parity Ratio', 'Equalized Odds Difference', 'Equalized Odds Ratio']:
+                performance_metrics[f'{metric} for {col}'].append(metrics_sums[col][metric] / num_folds)
+
+    return performance_metrics
