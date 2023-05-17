@@ -7,9 +7,9 @@ import numpy as np
 def data_loader(race_cols, num=10000, one_hot=True):
     # load csv file processed_data if it exists. Check if it exists with os module
     print('Loading data...')
-    if os.path.exists('data/processed_data.csv'):
+    if os.path.exists('algorithmic-fairness-exam/data/processed_data.csv'):
         print('processed_data.csv exists. Loading data from file.')
-        df = pd.read_csv('data/processed_data.csv')
+        df = pd.read_csv('algorithmic-fairness-exam/data/processed_data.csv')
         #check if the number of rows is close to the number of rows we want
         if df.shape[0] > num * 1.1 and df.shape[0] < num * 0.9:
             print('processed_data.csv does not have the correct number of rows. Creating new file.')
@@ -20,7 +20,7 @@ def data_loader(race_cols, num=10000, one_hot=True):
     return df
 
 def process_data(num, race_cols, one_hot):
-    df = pd.read_csv('data/hmda_2017_nationwide_all-records_codes.csv').sample(num, random_state=42)
+    df = pd.read_csv('algorithmic-fairness-exam/data/hmda_2017_nationwide_all-records_codes.csv').sample(num, random_state=42)
     print(f'Num samples = {df.shape[0]}')
 
     # Creating a combined variable of race and ethnicity
@@ -45,7 +45,7 @@ def process_data(num, race_cols, one_hot):
 
     df = add_income_group_column(df)
 
-    df.to_csv('data/processed_data.csv', index=False)
+    df.to_csv('algorithmic-fairness-exam/data/processed_data.csv', index=False)
 
     return df
 
