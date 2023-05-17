@@ -23,4 +23,30 @@ We work with the HMDA dataset to analyze bias in mortgage lending in the US, and
     ├── visualization.ipynb
     └── visualization.py
 ```
-The data folder is where all data is saved. If the csv file isn't already in the data folder it will be loaded and processed from the HMDA data file.
+
+Most of the functionality is hidden away in helper python files. Functions are then imported into various notebooks to run analysis and classification models.
+
+## Documentation
+### Data
+- The data folder holds the original HDMA data and a processed csv. If the csv file isn't already in the data folder it will be loaded and processed from the HMDA data file when running the data_loader.
+
+### Notebooks
+- 'visualization.ipynb'
+
+- 'models.ipynb'
+
+- 'model_eval.ipynb'
+
+- 'explainability.ipynb'
+
+### Helper files
+- 'data_loader.py'
+
+- 'visualization.py'
+
+- 'LR_pt.py' comprises all code related to training logistic regression models. We have implemented logistic regression to be able to modify the loss function to use an implementation of a 'Fair loss' function. It was done in pytorch to speed up the training process.
+
+- 'NN.py' comprises all code related to training and evaluating the neural network models. The models are implemented in pytorch.
+
+- 'PCA.py'
+
