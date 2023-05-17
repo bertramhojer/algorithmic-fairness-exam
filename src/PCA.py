@@ -101,7 +101,6 @@ def project_and_plot_PCA(X_train, size = (25, 5), n_components=2, corr_metric='p
     plt.show()
 
 
-
 def reconstruction_loss(X_train, X_test, n_components, groups, fair=False):
     loss = []
     if fair:
@@ -121,7 +120,7 @@ def reconstruction_loss(X_train, X_test, n_components, groups, fair=False):
             loss.append(mse)
     return loss
 
-def plot_reconstruction_loss(X_train, X_test, n_components, groups, fair=False):
+def plot_reconstruction_loss(X_train, X_test, n_components, groups):
     recon_loss = reconstruction_loss(X_train, X_test, n_components, groups, fair=False)
     recon_loss_fair = reconstruction_loss(X_train, X_test, n_components, groups, fair=True)
 

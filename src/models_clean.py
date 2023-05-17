@@ -90,5 +90,5 @@ def Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_group
 
 if __name__ == '__main__':
     main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, train_LR_L2_fairloss=False, 
-         train_NN=True, hyp_params=False, Train_NN_fairpca_ = False)
+         train_NN=False, hyp_params=False, Train_NN_fairpca_ = True)
  
