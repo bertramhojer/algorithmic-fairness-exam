@@ -17,10 +17,10 @@ class SimpleNN(nn.Module):
 
         self.fc_layers = nn.Sequential(
             nn.Linear(input_size, 64),
-            nn.Dropout(0.5),
+            nn.Dropout(0.4),
             nn.ReLU(),
             nn.Linear(64, 32),
-            nn.Dropout(0.5),
+            nn.Dropout(0.4),
             nn.ReLU(),
             nn.Linear(32, num_classes),
             nn.Softmax(dim=1)
