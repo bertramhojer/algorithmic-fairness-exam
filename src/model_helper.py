@@ -73,7 +73,7 @@ def cross_val_random(y_train_cv, iter, verbose, arr, _fold_size, X_train_cv_drop
         X_train_scaled = scaler.transform(X_train_cv_dropped[mask])
         
         y_pred, model = train_lr(X_train_scaled, y_train_cv[mask], 'X_val', 'y_val', train_groups, 'val_groups', num_epochs=1000, 
-                                 fair_loss_= fair_loss_, plot_loss=False, num_samples= num_samples, val_check = False)
+                                 fair_loss_= fair_loss_, plot_loss=True, num_samples= num_samples, val_check = False)
         y_pred = y_pred.detach().numpy()
 
         balanced_accuracy_scores.append(balanced_accuracy_score(y_train_cv[mask], y_pred)) 
@@ -189,4 +189,5 @@ def plot_lambda_tuning(performance_metrics, lambda_vals, one_hot_cols):
 
     plt.tight_layout()
     # save the plot
-    plt.savefig('plots/lambda_tuning.png')
+    plt.savefig('../plots/lambda_tuning.png')
+    

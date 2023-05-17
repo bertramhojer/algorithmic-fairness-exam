@@ -197,7 +197,7 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
         axs[1].set_xlabel('Epoch')
         axs[1].set_ylabel('F1 Score')
         axs[1].legend()
-        plt.savefig(f'plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.png')
+        plt.savefig(f'../plots/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.png')
     
     model.eval()
     if val_check:
@@ -209,6 +209,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             y_train_pred = model(X_train_tensor) > 0.5
         return y_train_pred, model
 
-    torch.save(model.state_dict(), f'models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.pt')
+    torch.save(model.state_dict(), f'../models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.pt')
     
     return model, fig, axs

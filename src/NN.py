@@ -154,7 +154,7 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
         axs[1].set_xlabel('Epoch')
         axs[1].set_ylabel('F1 Score')
         axs[1].legend()
-        plt.savefig(f'plots/NN_pca:{pca}_E:{num_epochs}_lr:{lr}_bs:{batch_size}.png')
+        plt.savefig(f'../plots/NN_pca:{pca}_E:{num_epochs}_lr:{lr}_bs:{batch_size}.png')
         
     # Evaluate the model
     model.eval()
@@ -171,9 +171,10 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
     print(f'Test Accuracy: {accuracy}%')
 
     # Save the model
-    torch.save(model.state_dict(), f'models/NN_pca:{pca}_E:{num_epochs}_lr:{lr}_bs:{batch_size}.pt')
+    model_path = f'../models/NN_pca:{pca}_E:{num_epochs}_lr:{lr}_bs:{batch_size}.pt'
+    torch.save(model.state_dict(), model_path)
 
-    return model, accuracy
+    return model, input_size, model_path
 
 
 from sklearn.metrics import accuracy_score, classification_report

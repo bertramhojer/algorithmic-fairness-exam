@@ -1,7 +1,7 @@
 from data_loader import data_loader, preprocess
 from model_helper import get_tuned_gamma, tune_lambda, plot_lambda_tuning, timer
 import numpy as np
-from NN import train_and_evaluate_nn
+from NN import train_and_evaluate_nn, evaluate_model
 from LR_pt import train_lr
 
 one_hot_cols = ['Race_American_Indian_Alaska_Native', 'Race_Asian', 'Race_Black_African_American', 
@@ -11,8 +11,9 @@ features = ['loan_amount_000s', 'loan_type', 'property_type','applicant_income_0
             'purchaser_type', 'hud_median_family_income', 'tract_to_msamd_income', 
             'number_of_owner_occupied_units', 'number_of_1_to_4_family_units', #'race_ethnicity', 
             'state_code', 'county_code', 'joint_sex', "minority_population", 'lien_status']
+
 def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, 
-         train_LR_L2_fairloss=False, train_NN=False, hyp_params=False):
+         train_LR_L2_fairloss=False, train_NN=False, hyp_params=False, Train_NN_fairpca_ = False):
 
     # The common setup code...
 
@@ -22,8 +23,8 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
     # filter columns to only include columns in the features list below
     features = ['loan_amount_000s', 'loan_type', 'property_type','applicant_income_000s', 
                 'purchaser_type', 'hud_median_family_income', 'tract_to_msamd_income', 
-                'number_of_owner_occupied_units', 'number_of_1_to_4_family_units', #'race_ethnicity', 
-                'state_code', 'county_code', 'joint_sex', "minority_population", 'lien_status']
+                'number_of_owner_occupied_units', 'number_of_1_to_4_family_units', #'race_ethnicity',  'joint_sex', "minority_population"
+                'state_code', 'county_code', 'lien_status']
 
     x_train, x_val, x_test, y_train, y_val, y_test, train_groups, val_groups, test_groups = preprocess(df, features, one_hot_cols)
 
@@ -33,8 +34,10 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
 
     # If hyp_params is set to True, compute gamma and lambda from scratch
     if hyp_params:
-        best_gamma = get_tuned_gamma(np.linspace(0.1, 1, 5), x_train, y_train, train_groups, num_folds=5, verbose=False)
+        best_gamma = get_tuned_gamma(np.linspace(0.1, 10, 5), x_train, y_train, train_groups, num_folds=5, verbose=False)
         lambda_vals = [0.001, 0.005, 0.01, 0.05, 0.1, 1]
+        find_best_lambda(x_train, y_train, test_groups, train_groups, x_test, y_test, best_gamma, one_hot_cols, lambda_vals)
+
     else:
         best_gamma = 0.325
         lambda_vals = [0.001]
@@ -55,6 +58,8 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
         LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fair_loss_= True)
 
     if train_NN:
+        Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=2, batch_size=512, lr=0.001, plot_loss=True, seed=2)
+    if Train_NN_fairpca_:
         Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=2, batch_size=512, lr=0.001, plot_loss=True, seed=2)
 
 @timer
@@ -83,10 +88,18 @@ def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, fai
     model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=1000, fair_loss_=fair_loss_)
 
 @timer
-def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=1000, batch_size=32, lr=0.1, plot_loss=True, seed=4206942):
+def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=100, batch_size=512, lr=0.0001, plot_loss=True, seed=4206942):
     pca = False
-    model, accuracy = train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=num_epochs, batch_size=batch_size,
+    model, input_size, model_path = train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=num_epochs, batch_size=batch_size,
                                             lr=lr, plot_loss=plot_loss, seed=seed, f1_freq_=1)
+    evaluate_model(model_path, x_train, x_test, y_test, input_size, num_classes=2, pca=False, train_groups=None)
+@timer
+def Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=100, batch_size=512, lr=0.001, plot_loss=True, seed=4206942):
+    pca = True
+    model, input_size, model_path = train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=num_epochs, batch_size=batch_size,
+                                            lr=lr, plot_loss=plot_loss, seed=seed, f1_freq_=1)
+    evaluate_model(model_path, x_train, x_test, y_test, input_size, num_classes=2, pca=True, train_groups=train_groups)
 
 if __name__ == '__main__':
-    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, train_LR_L2_fairloss=False, train_NN=False, hyp_params=False)
+    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, train_LR_L2_fairloss=False, 
+         train_NN=True, hyp_params=False, Train_NN_fairpca_ = False)
