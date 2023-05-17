@@ -124,7 +124,7 @@ def tune_lambda(x_train, y_train, test_groups, groups, x_test, y_test, best_gamm
     x_test_tensor = torch.from_numpy(x_test).float().to(device)
     for lambda_val in tqdm(lambda_vals):
         # Train model with a pytorch model
-        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=400, fair_loss_=True, plot_loss=True, 
+        y_train_pred, model = train_lr(x_train, y_train, 'X_test', 'y_test', groups, 'test_groups', num_epochs=500, fair_loss_=True, plot_loss=True, 
                                        num_samples= 2000, val_check = False, _lambda=lambda_val, _gamma=best_gamma)
 
         # Compute predictions for test set with a pytorch model

@@ -175,14 +175,14 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
        
 
         if val_check:
-                if val_cost.item() < best_val_loss:
-                    best_val_loss = val_cost.item()
-                    epochs_without_improvement = 0
-                else:
-                    epochs_without_improvement += 1
-                    if epochs_without_improvement == patience:
-                        print("Stopping early!")
-                        break
+            if val_cost.item() < best_val_loss:
+                best_val_loss = val_cost.item()
+                epochs_without_improvement = 0
+            else:
+                epochs_without_improvement += 1
+                if epochs_without_improvement == patience:
+                    print("Stopping early!")
+                    break
         
     if plot_loss:
         fig, axs = plt.subplots(2)

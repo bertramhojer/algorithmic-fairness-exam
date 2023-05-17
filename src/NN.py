@@ -17,7 +17,7 @@ class SimpleNN(nn.Module):
         self.fc1 = nn.Linear(input_size, 64)
         self.relu = nn.ReLU()
         self.fc2 = nn.Linear(64, 128)
-        self.fc4 = nn.Linear(128, num_classes)
+        self.fc3 = nn.Linear(128, num_classes)
         self.softmax = nn.Softmax(dim=1)
 
     def forward(self, x):
@@ -26,7 +26,7 @@ class SimpleNN(nn.Module):
         x = self.relu(x)
         x = self.fc2(x)
         x = self.relu(x)
-        x = self.fc4(x)
+        x = self.fc3(x)
         x = self.softmax(x)
         return x
     
