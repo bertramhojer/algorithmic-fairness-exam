@@ -12,6 +12,18 @@ from fairlearn.metrics import (
 import torch
 from LR_pt import compute_cost, train_lr
 from tqdm import tqdm
+import time
+
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.perf_counter()
+        result = func(*args, **kwargs)
+        end_time = time.perf_counter()
+        execution_time = end_time - start_time
+        print("Execution time: {:.4f} seconds".format(execution_time))
+        return result
+    return wrapper
+
 def sigmoid(x):
     """
     This is logistic regression
