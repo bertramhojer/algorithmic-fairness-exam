@@ -83,15 +83,15 @@ def Train_bare_lr(x_train, x_val, y_train, y_val, train_groups, val_groups):
 @timer
 def LR_l2(x_train, x_val, y_val, y_train, train_groups, val_groups, best_gamma):
     fair_loss_ = False
-    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=1000, fair_loss_=fair_loss_, gamma=best_gamma)
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=2000, fair_loss_=fair_loss_, gamma=best_gamma)
 
 @timer
 def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda ,fair_loss_=True):
     fair_loss_ = True
-    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=1000, fair_loss_=fair_loss_, gamma=best_gamma, lambda_=best_lambda)
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=2000, fair_loss_=fair_loss_, gamma=best_gamma, lambda_=best_lambda)
 
 @timer
-def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=100, batch_size=512, lr=0.0001, plot_loss=True, seed=4206942):
+def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=20, batch_size=512, lr=0.0001, plot_loss=True, seed=4206942):
     pca = False
     model, input_size, model_path = train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, pca, num_epochs=num_epochs, batch_size=batch_size,
                                             lr=lr, plot_loss=plot_loss, seed=seed, f1_freq_=1)
@@ -104,5 +104,5 @@ def Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_group
     evaluate_model(model_path, x_train, x_test, y_test, input_size, num_classes=2, pca=True, train_groups=train_groups)
 
 if __name__ == '__main__':
-    main(find_gamma=False, find_lambda=False, train_bare_lr=True, train_LR_l2=False, train_LR_L2_fairloss=False, 
-         train_NN=False, hyp_params=False, Train_NN_fairpca_ = False)
+    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, train_LR_L2_fairloss=False, 
+         train_NN=True, hyp_params=False, Train_NN_fairpca_ = False)
