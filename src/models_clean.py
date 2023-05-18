@@ -5,6 +5,7 @@ from model_helper import get_tuned_gamma, plot_lambda_tuning, timer, tune_lambda
 import numpy as np
 from NN import train_and_evaluate_nn, evaluate_model
 from LR_pt import train_lr
+from PCA import fair_PCA
 
 one_hot_cols = ['Race_American_Indian_Alaska_Native', 'Race_Asian', 'Race_Black_African_American', 
                 'Race_Native_Hawaiian_Pacific_Islander', 'Race_White', 'Race_White_Latino']
@@ -15,7 +16,7 @@ features = ['loan_amount_000s', 'loan_type', 'property_type','applicant_income_0
             'state_code', 'county_code', 'lien_status']
 
 def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, 
-         train_LR_L2_fairloss=False, train_NN=False, hyp_params=False, Train_NN_fairpca_ = False):
+         train_LR_L2_fairloss=False, train_NN=False, hyp_params=False, Train_NN_fairpca_ = False, train_LR_fairPCA=False):
     num_samples = 1_000_000
     df = data_loader(one_hot_cols, num=num_samples)
 
@@ -44,6 +45,9 @@ def main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=F
 
     if train_LR_L2_fairloss:
         LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda,  fair_loss_= True)
+
+    if train_LR_fairPCA:
+        LR_fairPCA(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda,  fair_loss_= True)
 
     if train_NN:
         Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=10, batch_size=512, lr=0.0001, plot_loss=True, seed=2)
@@ -82,6 +86,16 @@ def LR_L2_fairloss(x_train, x_val, y_train, y_val, train_groups, val_groups, bes
     fair_loss_ = True
     model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=2000, 
                                fair_loss_=fair_loss_, _gamma=best_gamma, _lambda=best_lambda, sample_size_ = 5_000 )
+@timer
+def LR_fairPCA(x_train, x_val, y_train, y_val, train_groups, val_groups, best_gamma, best_lambda ,fair_loss_=True):
+    fair_loss_ = 'NO l2'
+    X_fair_PCA, U, explained_variance = fair_PCA(x_train, n_components=x_train.shape[1], groups=train_groups)
+    x_train = X_fair_PCA
+    x_val = x_val @ U
+    print(x_train.shape)
+
+    model, fig, axs = train_lr(x_train, y_train, x_val, y_val, train_groups, val_groups, num_epochs=2000, 
+                               fair_loss_=fair_loss_, _gamma=best_gamma, _lambda=best_lambda, sample_size_ = 5_000 )
 
 @timer
 def Train_NN(x_train, x_val, x_test, y_train, y_val, y_test, train_groups, num_epochs=100, batch_size=512, lr=0.00001, plot_loss=True, seed=4206942):
@@ -96,6 +110,6 @@ def Train_NN_fairpca(x_train, x_val, x_test, y_train, y_val, y_test, train_group
     evaluate_model(model_path, x_train, x_test, y_test, input_size, num_classes=2, pca=True, train_groups=train_groups)
 
 if __name__ == '__main__':
-    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=True, train_LR_L2_fairloss=False, 
-         train_NN=False, hyp_params=False, Train_NN_fairpca_ = False)
+    main(find_gamma=False, find_lambda=False, train_bare_lr=False, train_LR_l2=False, train_LR_L2_fairloss=False, 
+         train_NN=False, hyp_params=False, Train_NN_fairpca_ = False, train_LR_fairPCA=True)
  

@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import f1_score
 import time
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 from tqdm import tqdm
 
 class LogisticRegression(nn.Module):
@@ -53,6 +53,7 @@ def fair_loss(y, y_pred, groups):
 
     return (cost / (n1 * n2)) ** 2
 
+
 def fair_loss_sample(y, y_pred, groups, sample_size=5_000):
     y = y.squeeze()
     y_pred = y_pred.squeeze()
@@ -78,6 +79,45 @@ def fair_loss_sample(y, y_pred, groups, sample_size=5_000):
 
     return (cost / (sample_size * sample_size)) ** 2
 
+
+def fair_loss_odds(y, y_pred, groups):
+    y = y.squeeze()
+    y_pred = y_pred.squeeze()
+
+    num_groups = groups.shape[1]
+
+    group_masks = [groups[:, i] == 1 for i in range(num_groups)]
+    group_sizes = [torch.sum(mask) for mask in group_masks]
+
+    assert all(size > 0 for size in group_sizes), "All groups must have at least one sample"
+
+    cost = 0
+
+    for i in range(num_groups):
+        for j in range(i + 1, num_groups):
+            group1_mask = group_masks[i]
+            group2_mask = group_masks[j]
+
+            y_pred_group1 = y_pred[group1_mask]
+            y_pred_group2 = y_pred[group2_mask]
+
+            y_group1 = y[group1_mask]
+            y_group2 = y[group2_mask]
+
+            tn1, fp1, fn1, tp1 = confusion_matrix(y_group1, y_pred_group1 > 0.5).ravel()
+            tn2, fp2, fn2, tp2 = confusion_matrix(y_group2, y_pred_group2 > 0.5).ravel()
+
+            tpr1 = tp1 / (tp1 + fn1)
+            fpr1 = fp1 / (fp1 + tn1)
+
+            tpr2 = tp2 / (tp2 + fn2)
+            fpr2 = fp2 / (fp2 + tn2)
+
+            cost += abs(tpr1 - tpr2) + abs(fpr1 - fpr2)
+
+    return cost / (num_groups * (num_groups - 1))
+
+
 def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False, sample_size_=5_000):
     logits = model(X)
     y_pred = torch.sigmoid(logits)
@@ -86,7 +126,8 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False, sample_
     if fair_loss_ == True:
         logistic_loss_value = logistic_loss(y, y_pred)
         l2_loss_value = l2_loss(beta, _gamma)
-        fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i], sample_size=sample_size_) for i in range(groups.shape[1]))
+        #fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i], sample_size=sample_size_) for i in range(groups.shape[1]))
+        fair_loss_value = fair_loss_odds(y, y_pred, groups)
         total_loss = logistic_loss_value + l2_loss_value + fair_loss_value
 
         # log the values
@@ -209,6 +250,6 @@ def train_lr(X_train, y_train, X_val, y_val, groups, val_groups, num_epochs=100,
             y_train_pred = model(X_train_tensor) > 0.5
         return y_train_pred, model
 
-    torch.save(model.state_dict(), f'../models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}.pt')
+    torch.save(model.state_dict(), f'../models/LRmodel_S:{num_samples}_E:{num_epochs}_F:{fair_loss_}_L:{_lambda}_G:{_gamma}_fairpca.pt')
     
     return model, fig, axs
