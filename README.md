@@ -18,7 +18,6 @@ We work with the HMDA dataset to analyze bias in mortgage lending in the US, and
     ├── explainability.ipynb
     ├── model_eval.ipynb
     ├── model_helper.py
-    ├── models.ipynb
     ├── models.py
     ├── visualization.ipynb
     └── visualization.py
@@ -31,13 +30,9 @@ Most of the functionality is hidden away in helper python files. Functions are t
 - The data folder holds the original HDMA data and a processed csv. If the csv file isn't already in the data folder it will be loaded and processed from the HMDA data file when running the data_loader.
 
 ### Notebooks
-- 'visualization.ipynb'
+- 'visualization.ipynb' imports plotting functionality from the visualization python file and when run produces all plots and tables for the EDA, statistical analysis, PCA & explainability using SHAP.
 
-- 'models.ipynb'
-
-- 'model_eval.ipynb'
-
-- 'explainability.ipynb'
+- 'model_eval.ipynb' imports all trained models and evaluates them and plots the evaluation metrics for all models together.
 
 ### Helper files
 - 'data_loader.py'
