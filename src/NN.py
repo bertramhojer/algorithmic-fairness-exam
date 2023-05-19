@@ -76,7 +76,6 @@ def train_and_evaluate_nn(x_train, x_val, x_test, y_train, y_val, y_test, train_
     model = SimpleNN(input_size, num_classes)
     # compute class weights
     class_weights = torch.tensor(torch.tensor([(1 / (y_train == 0).sum()), 1 / (y_train == 1).sum()])).float()
-    print(class_weights)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
     optimizer = optim.Adam(model.parameters(), lr=lr)
 

@@ -115,21 +115,3 @@ def preprocess(df, features, one_hot_cols):
 
     return x_train, x_val, x_test, y_train, y_val , y_test, train_groups, val_groups, test_groups
 
-def old_create_groups(x_train, x_test):
-    train_groups = np.column_stack([
-        x_train['applicant_sex'].to_numpy(),
-        x_train['race_ethnicity'].to_numpy()
-    ])
-    test_groups = np.column_stack([
-        x_test['applicant_sex'].to_numpy(),
-        x_test['race_ethnicity'].to_numpy()
-    ])
-    
-    return train_groups,test_groups
-
-def old_processing_protected_var(df):
-    df = df[df['applicant_sex'].isin([1, 2])] # men and female
-    df = df[df['race_ethnicity'].isin([3, 5])] # black and white 
-    df['applicant_sex'].replace({2: 0}, inplace=True) # men 1, women 0 
-    df['race_ethnicity'].replace({3: 1, 5: 0}, inplace=True)
-    return df

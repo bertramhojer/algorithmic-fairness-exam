@@ -125,10 +125,10 @@ def compute_cost(model, X, y, groups, _lambda, _gamma, fair_loss_=False, sample_
 
     if fair_loss_ == True:
         logistic_loss_value = logistic_loss(y, y_pred)
-        l2_loss_value = l2_loss(beta, _gamma)
+        #l2_loss_value = l2_loss(beta, _gamma)
         #fair_loss_value = sum(_lambda * fair_loss_sample(y, logits, groups[:, i], sample_size=sample_size_) for i in range(groups.shape[1]))
         fair_loss_value = fair_loss_odds(y, y_pred, groups)
-        total_loss = logistic_loss_value + l2_loss_value + fair_loss_value
+        total_loss = logistic_loss_value + fair_loss_value #+ l2_loss_value
 
         # log the values
         # print("logistic_loss:", logistic_loss_value.item(), "(", (logistic_loss_value / total_loss).item() * 100, "%)")
